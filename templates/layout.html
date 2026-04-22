@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default('360° Review') }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header style="margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px;">
+                <span style="color: var(--primary);">360°</span> REVIEWS
+            </div>
+            <nav class="sidebar-nav">
+                {% set perms = request.session.get('permissions', {}) %}
+                {% set tabs = perms.get('tabs', []) %}
+
+                {% if 'home' in tabs %}<a href="/" id="nav-home">Home</a>{% endif %}
+                {% if 'setup' in tabs %}<a href="/setup" id="nav-setup">Setup</a>{% endif %}
+                {% if 'review' in tabs %}<a href="/review" id="nav-review">Review</a>{% endif %}
+                {% if 'dashboard' in tabs %}<a href="/dashboard" id="nav-dash" class="btn-dashboard">Dashboard</a>{%
+                endif %}
+
+                {% if perms.get('is_superadmin') %}
+                <a href="/admin/users" id="nav-admin" style="color: var(--accent); font-weight: 700;">USER ACCESS</a>
+                {% endif %}
+
+                <a href="/logout" style="color: var(--danger); margin-left: 1rem;">Logout</a>
+            </nav>
+        </header>
+
+        <main class="animate-fade">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Simple active state for nav
+        const path = window.location.pathname;
+        if (path === '/') document.getElementById('nav-home')?.classList.add('active');
+        else if (path.includes('/setup')) document.getElementById('nav-setup')?.classList.add('active');
+        else if (path.includes('/review')) document.getElementById('nav-review')?.classList.add('active');
+        else if (path.includes('/dashboard')) document.getElementById('nav-dash')?.classList.add('active');
+        else if (path.includes('/admin/users')) document.getElementById('nav-admin')?.classList.add('active');
+    </script>
+</body>
+
+</html>

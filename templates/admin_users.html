@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-card animate-fade">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1>User Access Management</h1>
+        <div class="score-badge score-high" style="font-size: 0.9rem;">Superadmin Access</div>
+    </div>
+
+    <div style="display: grid; gap: 1.5rem;">
+        {% for user in users %}
+        <div class="glass-card" style="padding: 1.5rem; margin-bottom: 0; border-color: rgba(255,255,255,0.05);">
+            <form action="/admin/users/update" method="post"
+                style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 2fr auto; gap: 1.5rem; align-items: center;">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+
+                <!-- Info -->
+                <div>
+                    <div style="font-weight: 700; font-size: 1.1rem; color: #fff;">{{ user.name }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">{{ user.email }}</div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.7rem; opacity: 0.6;">Update Password</label>
+                    <input type="password" name="password" placeholder="Leave blank to keep current"
+                        style="font-size: 0.85rem; padding: 0.6rem;">
+                </div>
+
+                <!-- Role & Admin -->
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                        <label style="font-size: 0.7rem; opacity: 0.6;">Role</label>
+                        <select name="role" style="font-size: 0.85rem; padding: 0.6rem;">
+                            <option value="Dev" {% if user.role=='Dev' %}selected{% endif %}>Dev</option>
+                            <option value="QA" {% if user.role=='QA' %}selected{% endif %}>QA</option>
+                            <option value="Product" {% if user.role=='Product' %}selected{% endif %}>Product</option>
+                            <option value="Management" {% if user.role=='Management' %}selected{% endif %}>Management
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; text-align: center;">
+                        <label style="font-size: 0.7rem; opacity: 0.6;">Admin</label>
+                        <input type="checkbox" name="is_admin" value="true" {% if user.is_admin %}checked{% endif %}
+                            style="width: 20px; height: 20px; margin-top: 5px;">
+                    </div>
+                </div>
+
+                <!-- Tab Access -->
+                <div>
+                    <label style="font-size: 0.7rem; opacity: 0.6; display: block; margin-bottom: 5px;">Tab
+                        Permissions</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        {% set perms = user.permissions | from_json %}
+                        {% set tabs = perms.get('tabs', []) %}
+                        <label
+                            style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;">
+                            <input type="checkbox" name="tabs" value="home" {% if 'home' in tabs %}checked{% endif %}>
+                            Home
+                        </label>
+                        <label
+                            style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;">
+                            <input type="checkbox" name="tabs" value="setup" {% if 'setup' in tabs %}checked{% endif %}>
+                            Setup
+                        </label>
+                        <label
+                            style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;">
+                            <input type="checkbox" name="tabs" value="review" {% if 'review' in tabs %}checked{% endif
+                                %}> Review
+                        </label>
+                        <label
+                            style="font-size: 0.7rem; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px;">
+                            <input type="checkbox" name="tabs" value="dashboard" {% if 'dashboard' in tabs %}checked{%
+                                endif %}> Stats
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action -->
+                <div>
+                    <button type="submit" class="btn btn-primary"
+                        style="padding: 0.8rem 1.5rem; font-size: 0.85rem;">Save</button>
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

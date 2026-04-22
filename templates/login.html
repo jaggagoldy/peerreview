@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | 360° Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            padding: 0.8rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card glass-card animate-fade">
+        <div style="font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 800; margin-bottom: 2rem;">
+            <span style="color: var(--primary);">360°</span> REVIEWS
+        </div>
+
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Internal Access Only. Use your quickreply.ai email.
+        </p>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form action="/login" method="post">
+            <div class="form-group">
+                <input type="email" name="email" placeholder="email@quickreply.ai" required
+                    style="text-align: center; font-size: 1.1rem; padding: 1rem; margin-bottom: 1rem;">
+                <input type="password" name="password" placeholder="Password" required
+                    style="text-align: center; font-size: 1.1rem; padding: 1rem; width: 100%; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); color: #fff;">
+            </div>
+            <button type="submit" class="btn btn-primary"
+                style="width: 100%; padding: 1rem; margin-top: 1rem;">Continue</button>
+        </form>
+    </div>
+</body>
+
+</html>

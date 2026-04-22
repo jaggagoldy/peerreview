@@ -1,0 +1,677 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-card animate-fade">
+
+    {% if is_admin %}
+    <!-- =================== ADMIN HEADER =================== -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;">
+        <h1>Insights &amp; Performance</h1>
+        <a href="/dashboard" class="btn" style="padding:0.5rem 1rem;font-size:0.8rem;">Reset Filters</a>
+    </div>
+
+    <!-- Smart Filter Bar -->
+    <form method="get" action="/dashboard" id="filterForm">
+        <div class="glass-card" style="padding:1.5rem;margin-bottom:2rem;border-color:rgba(99,102,241,0.25);">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.6fr auto;gap:1.2rem;align-items:end;">
+
+                <!-- By Project -->
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-size:0.78rem;opacity:0.7;display:block;margin-bottom:6px;">By Project</label>
+                    <select name="project_id" id="sel-project" style="width:100%;">
+                        <option value="">All Projects</option>
+                        {% for p in all_projects %}
+                        <option value="{{ p.id }}" {% if filters.project_id==p.id %}selected{% endif %}>{{ p.name }} ({{
+                            p.sprint }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- By Role -->
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-size:0.78rem;opacity:0.7;display:block;margin-bottom:6px;">By Role</label>
+                    <select name="role" id="sel-role" style="width:100%;" onchange="onRoleChange(this.value)">
+                        <option value="">All Roles</option>
+                        <option value="Dev" {% if filters.role=='Dev' %}selected{% endif %}>Developer</option>
+                        <option value="QA" {% if filters.role=='QA' %}selected{% endif %}>QA</option>
+                        <option value="Product" {% if filters.role=='Product' %}selected{% endif %}>Product</option>
+                        <option value="Tech Lead" {% if filters.role=='Tech Lead' %}selected{% endif %}>Tech Lead
+                        </option>
+                    </select>
+                </div>
+
+                <!-- By Resource (custom multi-select checkbox dropdown) -->
+                <div class="form-group" style="margin-bottom:0;position:relative;">
+                    <label style="font-size:0.78rem;opacity:0.7;display:block;margin-bottom:6px;">By Resource <span
+                            style="font-size:0.65rem;opacity:0.5;">(multi-select)</span></label>
+                    <div id="multisel-trigger" onclick="toggleMultiselect(event)"
+                        style="cursor:pointer;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;min-height:44px;">
+                        <span id="multisel-label" style="font-size:0.9rem;color:rgba(255,255,255,0.9);">All Team
+                            Members</span>
+                        <span style="opacity:0.5;font-size:0.7rem;">▼</span>
+                    </div>
+                    <div id="multisel-dropdown"
+                        style="display:none;position:absolute;z-index:100;top:calc(100% + 4px);left:0;right:0;background:#1a1d2e;border:1px solid rgba(99,102,241,0.4);border-radius:10px;max-height:260px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+                        <div
+                            style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.72rem;display:flex;justify-content:space-between;">
+                            <span onclick="selectAllUsers()" style="cursor:pointer;color:var(--primary);">Select
+                                All</span>
+                            <span onclick="clearAllUsers()" style="cursor:pointer;color:#f87171;">Clear</span>
+                        </div>
+                        {% for u in users %}
+                        <label class="ms-option" data-role="{{ u.role }}"
+                            style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background 0.15s;border-bottom:1px solid rgba(255,255,255,0.03);">
+                            <input type="checkbox" name="user_name" value="{{ u.name }}" class="ms-checkbox" {% if
+                                u.name in filters.user_name %}checked{% endif %} onchange="updateMultiselLabel()">
+                            <span style="flex:1;font-size:0.88rem;">{{ u.name }}</span>
+                            <span style="font-size:0.68rem;padding:1px 7px;border-radius:10px;
+                        {% if u.role == 'Dev' %}background:rgba(99,102,241,0.15);color:#818cf8;
+                        {% elif u.role == 'QA' %}background:rgba(16,185,129,0.15);color:#34d399;
+                        {% elif u.role == 'Tech Lead' %}background:rgba(167,139,250,0.15);color:#a78bfa;
+                        {% else %}background:rgba(245,158,11,0.15);color:#fbbf24;{% endif %}">
+                                {{ u.role }}
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div style="padding-bottom:2px;">
+                    <button type="submit" class="btn btn-primary" style="padding:0.65rem 1.6rem;">Apply</button>
+                </div>
+            </div>
+
+            <!-- Active filter chips -->
+            {% if filters.role or filters.user_name or filters.project_id %}
+            <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <span style="font-size:0.72rem;opacity:0.5;">Active:</span>
+                {% if filters.role %}
+                <span
+                    style="background:rgba(99,102,241,0.15);color:var(--primary);font-size:0.72rem;padding:3px 10px;border-radius:20px;font-weight:700;">Role:
+                    {{ filters.role }}</span>
+                {% endif %}
+                {% if filters.project_id %}
+                {% for p in all_projects %}{% if p.id == filters.project_id %}<span
+                    style="background:rgba(16,185,129,0.12);color:var(--accent);font-size:0.72rem;padding:3px 10px;border-radius:20px;">Project:
+                    {{ p.name }}</span>{% endif %}{% endfor %}
+                {% endif %}
+                {% if filters.user_name %}
+                {% for un in filters.user_name %}
+                <span
+                    style="background:rgba(167,139,250,0.12);color:#a78bfa;font-size:0.72rem;padding:3px 10px;border-radius:20px;">{{
+                    un }}</span>
+                {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </form>
+
+    {% else %}
+    <!-- =================== REGULAR USER HEADER =================== -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+        <div>
+            <h1 style="margin-bottom:0.2rem;">My Performance Profile</h1>
+            <p style="color:var(--text-muted);margin:0;font-size:0.9rem;">
+                Viewing stats for <strong style="color:var(--primary);">{{ current_user.name }}</strong>
+                &nbsp;·&nbsp;
+                <span
+                    style="background:rgba(99,102,241,0.2);color:var(--primary);padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;text-transform:uppercase;">{{
+                    current_user.role }}</span>
+            </p>
+        </div>
+        <a href="/" class="btn" style="padding:0.5rem 1.2rem;font-size:0.85rem;">← Home</a>
+    </div>
+    <form method="get" action="/dashboard">
+        <div class="glass-card" style="padding:1.2rem 1.5rem;margin-bottom:2rem;border-color:rgba(99,102,241,0.15);">
+            <div style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap;">
+                <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;">
+                    <label style="font-size:0.8rem;opacity:0.7;display:block;margin-bottom:6px;">Filter by
+                        Project</label>
+                    <select name="project_id" onchange="this.form.submit()">
+                        <option value="">All My Projects</option>
+                        {% for p in projects %}
+                        <option value="{{ p.id }}" {% if filters.project_id==p.id %}selected{% endif %}>{{ p.name }} ({{
+                            p.sprint }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="padding-bottom:5px;display:flex;gap:8px;">
+                    <button type="submit" class="btn btn-primary" style="padding:0.55rem 1.2rem;">Apply</button>
+                    {% if filters.project_id %}<a href="/dashboard" class="btn"
+                        style="padding:0.55rem 1rem;font-size:0.85rem;">Clear</a>{% endif %}
+                </div>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+
+
+    <!-- =================== PROJECT INFO CARD =================== -->
+    {% if project_info %}
+    <div class="glass-card"
+        style="border-left:4px solid var(--primary);margin-bottom:2rem;background:rgba(99,102,241,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+            <div>
+                <h2 style="margin-bottom:0.3rem;">{{ project_info.name }}</h2>
+                <div style="font-size:0.87rem;color:var(--text-muted);">
+                    Sprint: <span style="color:#fff;">{{ project_info.sprint }}</span> &nbsp;|&nbsp;
+                    Dev POC: <span style="color:var(--primary);">{{ project_info.dev_poc }}</span> &nbsp;|&nbsp;
+                    QA POC: <span style="color:var(--accent);">{{ project_info.qa_poc }}</span>
+                    {% if project_info.tech_lead_name %} &nbsp;|&nbsp; Tech Lead: <span style="color:#a78bfa;">{{
+                        project_info.tech_lead_name }}</span>{% endif %}
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:0.7rem;opacity:0.5;">SUBMISSIONS</div>
+                <div style="font-size:1.4rem;font-weight:800;color:var(--primary);">{{ project_info.feedback_list|length
+                    }}</div>
+            </div>
+        </div>
+        {% if project_info.feedback_list and is_admin %}
+        <div style="margin-top:1.2rem;">
+            <div style="font-size:0.72rem;letter-spacing:1px;opacity:0.6;margin-bottom:8px;">IMPROVEMENT FEEDBACK:</div>
+            <div style="display:grid;gap:6px;">
+                {% for feed in project_info.feedback_list %}
+                <div
+                    style="background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;font-size:0.83rem;font-style:italic;">
+                    "{{ feed }}"</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+
+    <!-- =================== ROLE CARDS VIEW (role selected, no specific user) =================== -->
+    {% if is_admin and filters.role and not filters.user_name %}
+
+    {% set role_colors = {'Dev': '#6366f1', 'QA': '#10b981', 'Product': '#f59e0b', 'Tech Lead': '#a78bfa'} %}
+    {% set role_metric_map = {
+    'Dev': ('Accountability','Productivity','Coordination'),
+    'QA': ('Test Coverage','Bug Quality','Communication'),
+    'Product': ('Req Clarity','Support','Change Handle'),
+    'Tech Lead': ('Technical Guidance','Code Quality Support','Team Mentorship')
+    } %}
+    {% set rc = role_colors.get(filters.role, '#6366f1') %}
+    {% set ms = role_metric_map.get(filters.role, ('M1','M2','M3')) %}
+
+    <div style="margin-bottom:1.5rem;">
+        <h2 style="margin-bottom:0.2rem;">
+            {% if filters.role=='Dev' %}👨‍💻{% elif filters.role=='QA' %}🔍{% elif filters.role=='Product' %}📋{% else
+            %}🏗️{% endif %}
+            {{ filters.role }} — Individual Performance
+        </h2>
+        <p style="color:var(--text-muted);font-size:0.83rem;margin-top:0;">Metrics: <strong>{{ ms[0] }}</strong> ·
+            <strong>{{ ms[1] }}</strong> · <strong>{{ ms[2] }}</strong> &nbsp;·&nbsp; Click any card to view full
+            profile</p>
+    </div>
+
+    {% if leaderboard %}
+    <div
+        style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;margin-bottom:2.5rem;">
+        {% for entry in leaderboard %}
+        <div class="person-card glass-card" style="margin-bottom:0;cursor:pointer;border-top:3px solid {{ rc }};"
+            onclick="window.location.href='/dashboard?user_name={{ entry.name }}'">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
+                <div>
+                    <div style="font-weight:800;font-size:1.05rem;color:#fff;margin-bottom:5px;">{{ entry.name }}</div>
+                    <span
+                        style="font-size:0.68rem;background:rgba(0,0,0,0.25);color:{{ rc }};border:1px solid {{ rc }}44;padding:2px 10px;border-radius:20px;font-weight:700;text-transform:uppercase;">{{
+                        entry.role }}</span>
+                    {% if entry.poc_count > 0 %}<span
+                        style="font-size:0.68rem;background:rgba(16,185,129,0.1);color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:700;margin-left:5px;">POC
+                        ×{{ entry.poc_count }}</span>{% endif %}
+                </div>
+                <div style="text-align:center;">
+                    <div
+                        style="font-size:0.58rem;opacity:0.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">
+                        Overall</div>
+                    <div class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
+                        style="font-size:1.1rem;padding:5px 13px;">{{ entry.overall }}</div>
+                </div>
+            </div>
+            <div style="display:grid;gap:9px;">
+                {% for label, val in [(ms[0], entry.s1), (ms[1], entry.s2), (ms[2], entry.s3)] %}
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px;">
+                        <span style="opacity:0.75;">{{ label }}</span>
+                        <span style="font-weight:700;color:#fff;">{{ val }} / 5</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                        <div
+                            style="background:{{ rc }};height:100%;border-radius:6px;width:{{ (val/5*100)|int }}%;transition:width 0.6s ease;">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top:1rem;font-size:0.7rem;color:var(--text-muted);text-align:right;">Full profile →</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:var(--text-muted);">No review data found for {{ filters.role }}.
+    </div>
+    {% endif %}
+
+    <!-- Team Avg card for selected role (card style matching person cards) -->
+    {% if team_avgs.get(filters.role) %}
+    {% set avg = team_avgs[filters.role] %}
+    <h3 style="margin-bottom:1rem;">{{ filters.role }} Team Average</h3>
+    <div class="glass-card" style="max-width:400px;border-top:3px solid {{ rc }};margin-bottom:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
+            <div>
+                <div style="font-weight:800;font-size:1rem;color:#fff;margin-bottom:5px;">{{ filters.role }} TEAM AVG
+                </div>
+                <span
+                    style="font-size:0.68rem;background:rgba(0,0,0,0.25);color:{{ rc }};border:1px solid {{ rc }}44;padding:2px 10px;border-radius:20px;font-weight:700;">ALL
+                    MEMBERS</span>
+            </div>
+            <div style="text-align:center;">
+                <div
+                    style="font-size:0.58rem;opacity:0.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">
+                    Team Avg</div>
+                <div class="score-badge {% if avg.overall >= 4.5 %}score-high{% elif avg.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
+                    style="font-size:1.1rem;padding:5px 13px;">{{ avg.overall }}</div>
+            </div>
+        </div>
+        <div style="display:grid;gap:9px;">
+            {% for label, val in [(ms[0], avg.s1), (ms[1], avg.s2), (ms[2], avg.s3)] %}
+            <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px;">
+                    <span style="opacity:0.75;">{{ label }}</span>
+                    <span style="font-weight:700;color:#fff;">{{ val }} / 5</span>
+                </div>
+                <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                    <div
+                        style="background:{{ rc }};height:100%;border-radius:6px;width:{{ (val/5*100)|int }}%;transition:width 0.6s ease;">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% elif is_admin and not filters.role and not filters.user_name %}
+    <!-- =================== ALL ROLES TEAM AVG CARDS (no filter) =================== -->
+    <h2 style="margin-bottom:1.2rem;">Team Averages by Role</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;margin-bottom:3rem;">
+        {% set role_colors2 = {'Dev': '#6366f1', 'QA': '#10b981', 'Product': '#f59e0b', 'Tech Lead': '#a78bfa'} %}
+        {% set role_metric_map2 = {
+        'Dev': ('Accountability','Productivity','Coordination'),
+        'QA': ('Test Coverage','Bug Quality','Communication'),
+        'Product': ('Req Clarity','Support','Change Handle'),
+        'Tech Lead': ('Technical Guidance','Code Quality Support','Team Mentorship')
+        } %}
+        {% for r_role, avg in team_avgs.items() %}
+        {% set rc2 = role_colors2.get(r_role, '#6366f1') %}
+        {% set ms2 = role_metric_map2.get(r_role, ('M1','M2','M3')) %}
+        <div class="glass-card" style="margin-bottom:0;border-top:3px solid {{ rc2 }};cursor:pointer;"
+            onclick="window.location.href='/dashboard?role={{ r_role }}'">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
+                <div>
+                    <div style="font-weight:800;font-size:1rem;color:#fff;margin-bottom:5px;">
+                        {% if r_role=='Dev' %}👨‍💻{% elif r_role=='QA' %}🔍{% elif r_role=='Product' %}📋{% else
+                        %}🏗️{% endif %}
+                        {{ r_role }}
+                    </div>
+                    <span
+                        style="font-size:0.68rem;background:rgba(0,0,0,0.25);color:{{ rc2 }};border:1px solid {{ rc2 }}44;padding:2px 10px;border-radius:20px;font-weight:700;">TEAM
+                        AVG</span>
+                </div>
+                <div style="text-align:center;">
+                    <div
+                        style="font-size:0.58rem;opacity:0.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">
+                        Overall</div>
+                    <div class="score-badge {% if avg.overall >= 4.5 %}score-high{% elif avg.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
+                        style="font-size:1.1rem;padding:5px 13px;">{{ avg.overall }}</div>
+                </div>
+            </div>
+            <div style="display:grid;gap:9px;">
+                {% for label, val in [(ms2[0], avg.s1), (ms2[1], avg.s2), (ms2[2], avg.s3)] %}
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px;">
+                        <span style="opacity:0.75;">{{ label }}</span>
+                        <span style="font-weight:700;color:#fff;">{{ val }} / 5</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                        <div
+                            style="background:{{ rc2 }};height:100%;border-radius:6px;width:{{ (val/5*100)|int }}%;transition:width 0.6s ease;">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top:0.8rem;font-size:0.7rem;color:var(--text-muted);text-align:right;">View members →
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+    <!-- =================== SINGLE USER PROFILE =================== -->
+    {% if user_profile %}
+    <div class="animate-slide-up">
+
+        {% if not is_admin and user_profile.best_project %}
+        <div class="glass-card"
+            style="margin-bottom:2rem;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(99,102,241,0.05));border-color:rgba(16,185,129,0.3);">
+            <div style="display:flex;align-items:center;gap:1.5rem;">
+                <div style="font-size:2.5rem;">🏆</div>
+                <div style="flex:1;">
+                    <div
+                        style="font-size:0.72rem;letter-spacing:1px;color:var(--accent);font-weight:700;text-transform:uppercase;margin-bottom:4px;">
+                        Best Performance</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:#fff;">{{ user_profile.best_project.name }}</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);">Sprint: {{ user_profile.best_project.sprint
+                        }}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:2.8rem;font-weight:800;color:var(--accent);line-height:1;">{{
+                        user_profile.best_project.score }}</div>
+                    <div style="font-size:0.65rem;opacity:0.5;">out of 5</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_admin %}
+        <div style="display:flex;align-items:baseline;gap:15px;margin-bottom:2rem;">
+            <h2 style="margin:0;">Resource Profile: <span style="color:var(--primary);">{{ user_profile.name }}</span>
+            </h2>
+            <span
+                style="background:rgba(99,102,241,0.2);color:var(--primary);padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;text-transform:uppercase;">{{
+                user_profile.role }}</span>
+        </div>
+        {% endif %}
+
+        {% if user_profile.role == 'Dev' %}{% set l1='Accountability' %}{% set l2='Productivity' %}{% set
+        l3='Coordination' %}{% set prc='#6366f1' %}
+        {% elif user_profile.role == 'QA' %}{% set l1='Test Coverage' %}{% set l2='Bug Quality' %}{% set
+        l3='Communication' %}{% set prc='#10b981' %}
+        {% elif user_profile.role == 'Tech Lead' %}{% set l1='Technical Guidance' %}{% set l2='Code Quality Support'
+        %}{% set l3='Team Mentorship' %}{% set prc='#a78bfa' %}
+        {% else %}{% set l1='Req Clarity' %}{% set l2='Support' %}{% set l3='Change Handle' %}{% set prc='#f59e0b' %}{%
+        endif %}
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:2rem;">
+            {% for label, val in [(l1, user_profile.s1_avg), (l2, user_profile.s2_avg), (l3, user_profile.s3_avg)] %}
+            <div class="glass-card" style="text-align:center;border-bottom:4px solid {{ prc }};margin-bottom:0;">
+                <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:6px;">{{ label }}</p>
+                <div style="font-size:2rem;font-weight:800;color:#fff;">{{ val }}</div>
+                <div style="font-size:0.65rem;opacity:0.5;">avg / 5</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:1.5rem;margin-bottom:2rem;">
+            <div class="glass-card" style="text-align:center;margin-bottom:0;">
+                <p style="color:var(--text-muted);font-size:0.8rem;">Total Projects</p>
+                <div style="font-size:2.2rem;font-weight:800;color:#fff;">{{ user_profile.total_projects }}</div>
+            </div>
+            <div class="glass-card" style="text-align:center;margin-bottom:0;">
+                <p style="color:var(--text-muted);font-size:0.8rem;">POC Assignments</p>
+                <div style="font-size:2.2rem;font-weight:800;color:var(--accent);">{{ user_profile.poc_count }}</div>
+            </div>
+            <div class="glass-card"
+                style="text-align:center;background:rgba(99,102,241,0.08);border-color:var(--primary);margin-bottom:0;">
+                <p style="color:var(--text-muted);font-size:0.8rem;">Overall Performance</p>
+                <div style="font-size:2.2rem;font-weight:800;color:var(--primary);">
+                    {% set score=(user_profile.s1_avg+user_profile.s2_avg+user_profile.s3_avg)/3 %}{{ score|round(2) }}
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:1.5rem;margin-bottom:3rem;">
+            <div class="glass-card">
+                <h3>Performance Trend</h3>
+                <canvas id="performanceChart" style="max-height:240px;"></canvas>
+            </div>
+            <div class="glass-card">
+                <h3>{% if is_admin %}Feedback Received{% else %}My Feedback{% endif %}</h3>
+                <div style="max-height:240px;overflow-y:auto;padding-right:8px;">
+                    {% for r in user_profile.reviews|reverse %}
+                    <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <div
+                            style="display:flex;justify-content:space-between;font-size:0.73rem;color:var(--accent);font-weight:700;margin-bottom:4px;">
+                            <span>{{ user_profile.all_projects[r.project_id] }}</span>
+                            <span style="opacity:0.6;">By {{ r.reviewer_name }}</span>
+                        </div>
+                        <div style="font-size:0.83rem;color:#fff;line-height:1.45;">"{{ r.remarks }}"</div>
+                    </div>
+                    {% else %}
+                    <p style="color:var(--text-muted);text-align:center;padding-top:2rem;">No feedback yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif not is_admin %}
+    <div style="text-align:center;padding:4rem;color:var(--text-muted);">
+        <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
+        <p>No performance reviews received yet for this filter.</p>
+    </div>
+    {% endif %}
+
+
+    <!-- =================== LEADERBOARD TABLE (admin, no role filter, or multi-user) =================== -->
+    {% if is_admin and (not filters.role or filters.user_name|length > 1 or (filters.user_name|length == 1 and
+    user_profile)) %}
+    {% if not filters.role or filters.user_name %}
+    <h2 style="margin-top:0;margin-bottom:1.2rem;">Detailed Rankings</h2>
+    <div class="glass-card" style="padding:0;overflow:hidden;">
+        {% if leaderboard %}
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr
+                        style="text-align:left;border-bottom:1px solid var(--glass-border);opacity:0.65;font-size:0.77rem;background:rgba(255,255,255,0.02);">
+                        <th style="padding:1.2rem 1.5rem;">Resource</th>
+                        <th style="padding:1.2rem 1.5rem;">Role</th>
+                        <th style="padding:1.2rem 1.5rem;">M1 Avg</th>
+                        <th style="padding:1.2rem 1.5rem;">M2 Avg</th>
+                        <th style="padding:1.2rem 1.5rem;">M3 Avg</th>
+                        <th style="padding:1.2rem 1.5rem;">POCs</th>
+                        <th style="padding:1.2rem 1.5rem;">Overall</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in leaderboard %}
+                    <tr class="stats-card-row" style="border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;"
+                        onclick="window.location.href='/dashboard?user_name={{ entry.name }}'">
+                        <td style="padding:1.2rem 1.5rem;font-weight:700;color:#fff;">{{ entry.name }}</td>
+                        <td style="padding:1.2rem 1.5rem;">
+                            <span
+                                style="font-size:0.72rem;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">{{
+                                entry.role }}</span>
+                        </td>
+                        <td style="padding:1.2rem 1.5rem;">{{ entry.s1 }}</td>
+                        <td style="padding:1.2rem 1.5rem;">{{ entry.s2 }}</td>
+                        <td style="padding:1.2rem 1.5rem;">{{ entry.s3 }}</td>
+                        <td style="padding:1.2rem 1.5rem;"><span style="color:var(--accent);font-weight:700;">{{
+                                entry.poc_count }}</span></td>
+                        <td style="padding:1.2rem 1.5rem;">
+                            <span
+                                class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}">{{
+                                entry.overall }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding:4rem;text-align:center;color:var(--text-muted);">No reviews found matching these filters.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+</div><!-- end glass-card -->
+
+
+<style>
+    .person-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .ms-option:hover {
+        background: rgba(99, 102, 241, 0.08);
+    }
+
+    .ms-option input {
+        accent-color: var(--primary);
+        width: 15px;
+        height: 15px;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ======= Smart filter data maps from Python =======
+const userRoleMap    = {{ user_role_map | tojson }};
+const userProjectsMap = {{ user_projects_map | tojson }};
+const roleUsersMap   = {{ role_users_map | tojson }};
+const allProjectOptData = [
+    {% for p in all_projects %}{ id: {{ p.id }}, label: "{{ p.name }} ({{ p.sprint }})" },{% endfor %}
+];
+
+// ------- Multi-select dropdown logic -------
+function toggleMultiselect(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('multisel-dropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', () => {
+    const dd = document.getElementById('multisel-dropdown');
+    if (dd) dd.style.display = 'none';
+});
+document.getElementById('multisel-dropdown')?.addEventListener('click', e => e.stopPropagation());
+
+function updateMultiselLabel() {
+    const checked = Array.from(document.querySelectorAll('.ms-checkbox:checked')).map(cb => cb.value);
+    const lbl = document.getElementById('multisel-label');
+    lbl.textContent = checked.length === 0 ? 'All Team Members'
+        : checked.length <= 2 ? checked.join(', ')
+        : `${checked.length} selected`;
+}
+
+function selectAllUsers() {
+    document.querySelectorAll('.ms-option:not([style*="display:none"]) .ms-checkbox').forEach(cb => cb.checked = true);
+    updateMultiselLabel();
+}
+function clearAllUsers() {
+    document.querySelectorAll('.ms-checkbox').forEach(cb => cb.checked = false);
+    updateMultiselLabel();
+}
+
+// ------- Role filter → restrict user options -------
+function onRoleChange(selectedRole) {
+    const options = document.querySelectorAll('.ms-option');
+    const checkboxes = document.querySelectorAll('.ms-checkbox');
+
+    options.forEach(opt => {
+        const optRole = opt.getAttribute('data-role');
+        if (!selectedRole || optRole === selectedRole) {
+            opt.style.display = 'flex';
+        } else {
+            opt.style.display = 'none';
+            // Uncheck hidden options so they don't get submitted
+            opt.querySelector('.ms-checkbox').checked = false;
+        }
+    });
+    updateMultiselLabel();
+
+    // Clear project when role changes
+    const projSel = document.getElementById('sel-project');
+    if (projSel) projSel.value = '';
+}
+
+// ------- User checkbox change → auto-set role + filter projects -------
+document.querySelectorAll('.ms-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const checked = Array.from(document.querySelectorAll('.ms-checkbox:checked')).map(c => c.value);
+        if (checked.length === 1) {
+            const name = checked[0];
+            const role = userRoleMap[name];
+            // Auto-set role dropdown
+            const roleSel = document.getElementById('sel-role');
+            if (roleSel && role) {
+                roleSel.value = role;
+                onRoleChange(role);
+                // Re-check the checkbox (onRoleChange might have hidden it briefly)
+                cb.checked = true;
+            }
+            // Filter project dropdown to only user's projects
+            const userPids = userProjectsMap[name] || [];
+            const projSel = document.getElementById('sel-project');
+            if (projSel) {
+                const currentVal = projSel.value;
+                projSel.innerHTML = '<option value="">All Projects</option>';
+                allProjectOptData.forEach(p => {
+                    if (userPids.includes(p.id)) {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.label;
+                        if (parseInt(currentVal) === p.id) opt.selected = true;
+                        projSel.appendChild(opt);
+                    }
+                });
+            }
+        } else if (checked.length === 0) {
+            // Reset role and project
+            const roleSel = document.getElementById('sel-role');
+            if (roleSel) { roleSel.value = ''; onRoleChange(''); }
+            const projSel = document.getElementById('sel-project');
+            if (projSel) {
+                projSel.innerHTML = '<option value="">All Projects</option>';
+                allProjectOptData.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id; opt.textContent = p.label;
+                    projSel.appendChild(opt);
+                });
+            }
+        }
+        updateMultiselLabel();
+    });
+});
+
+// On page load: apply role filter to user list if role is pre-selected
+(function init() {
+    const roleSel = document.getElementById('sel-role');
+    if (roleSel && roleSel.value) onRoleChange(roleSel.value);
+    updateMultiselLabel();
+})();
+
+// ------- Performance trend chart -------
+{% if user_profile and user_profile.trend %}
+new Chart(document.getElementById('performanceChart'), {
+    type: 'line',
+    data: {
+        labels: {{ user_profile.trend | map(attribute='project') | list | tojson }},
+        datasets: [{
+            label: 'Score',
+            data: {{ user_profile.trend | map(attribute='score') | list | tojson }},
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.08)',
+            fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: '#6366f1'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { min: 0, max: 5, ticks: { color: 'rgba(255,255,255,0.45)', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { ticks: { color: 'rgba(255,255,255,0.45)' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

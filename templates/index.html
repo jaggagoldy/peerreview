@@ -1,0 +1,252 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+{% if user.is_admin %}
+<!-- ===================== ADMIN VIEW ===================== -->
+<div class="glass-card animate-fade">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 style="margin-bottom: 0.2rem;">Welcome, {{ user.name }} 👋</h1>
+            <p style="color: var(--text-muted); margin: 0; font-size: 0.95rem;">
+                <span
+                    style="background: rgba(99,102,241,0.2); color: var(--primary); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">{{
+                    user.role }}</span>
+                &nbsp; Full system access
+            </p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <a href="/dashboard" class="btn btn-primary" style="padding: 0.8rem 2rem;">📊 Analytics Dashboard</a>
+            <a href="/setup" class="btn" style="padding: 0.8rem 1.5rem; background: rgba(255,255,255,0.05);">+ New
+                Project</a>
+        </div>
+    </div>
+
+    <!-- Admin stats bar -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-color: rgba(99,102,241,0.3);">
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">TOTAL PROJECTS</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--primary);">{{ project_status|length }}</div>
+        </div>
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-color: rgba(16,185,129,0.3);">
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">REVIEWS COMPLETED</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">{{ project_status |
+                selectattr('completed') | list | length }}</div>
+        </div>
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-color: rgba(239,68,68,0.2);">
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">PENDING REVIEWS</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: #f87171;">{{ project_status |
+                rejectattr('completed') | list | length }}</div>
+        </div>
+    </div>
+
+    <!-- All Projects List -->
+    <h2 style="margin-top: 1rem;">All Projects</h2>
+    {% if project_status %}
+    <div style="display: grid; gap: 1rem;">
+        {% for item in project_status %}
+        <div class="glass-card" style="margin-bottom: 0; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;
+            border-left: 4px solid {% if item.completed %}var(--accent){% else %}rgba(239,68,68,0.6){% endif %};">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                    <h3 style="margin: 0; background: none; -webkit-text-fill-color: var(--text-main);">{{
+                        item.project.name }}</h3>
+                    {% if item.completed %}
+                    <span
+                        style="background: rgba(16,185,129,0.15); color: var(--accent); font-size: 0.7rem; font-weight: 700; padding: 2px 10px; border-radius: 20px;">✓
+                        REVIEWED</span>
+                    {% else %}
+                    <span
+                        style="background: rgba(239,68,68,0.1); color: #f87171; font-size: 0.7rem; font-weight: 700; padding: 2px 10px; border-radius: 20px;">⏳
+                        PENDING</span>
+                    {% endif %}
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Sprint: {{ item.project.sprint }} |
+                    Release: {{ item.project.release_date }}</p>
+            </div>
+            <div style="display: flex; gap: 0.8rem;">
+                <a href="/review?project_id={{ item.project.id }}" class="btn"
+                    style="background: rgba(99,102,241,0.15); color: var(--primary); padding: 0.5rem 1.2rem; font-size: 0.85rem;">
+                    {% if item.completed %}View Review{% else %}Review Now{% endif %}
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 4rem; color: var(--text-muted);">
+        <p>No projects found. <a href="/setup" style="color: var(--primary);">Create one now →</a></p>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- ===================== REGULAR USER VIEW ===================== -->
+<div class="animate-fade">
+
+    <!-- Welcome Banner -->
+    <div class="glass-card"
+        style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.05));">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1 style="margin-bottom: 0.3rem;">Welcome back, {{ user.name }} 👋</h1>
+                <p style="color: var(--text-muted); margin: 0;">
+                    <span
+                        style="background: rgba(99,102,241,0.2); color: var(--primary); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">{{
+                        user.role }}</span>
+                    &nbsp; Here's your performance snapshot
+                </p>
+            </div>
+            <a href="/dashboard?user_name={{ user.name }}" class="btn btn-primary"
+                style="padding: 0.7rem 1.5rem; font-size: 0.85rem;">
+                📈 Full Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- ---- My Performance Stats ---- -->
+    {% if my_reviews_received %}
+    <h2 style="margin-bottom: 1.2rem;">My Performance</h2>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2.5rem;">
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m1 }}</div>
+            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s1_avg }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
+        </div>
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m2 }}</div>
+            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s2_avg }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
+        </div>
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m3 }}</div>
+            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s3_avg }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
+        </div>
+        <div class="glass-card"
+            style="text-align: center; margin-bottom: 0; background: rgba(99,102,241,0.1); border-color: var(--primary);">
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Overall Score
+            </div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--primary);">{{ overall_avg }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">from {{ total_received }} review{{ 's' if
+                total_received != 1 }}</div>
+        </div>
+    </div>
+
+    <!-- Feedback received -->
+    <div class="glass-card" style="margin-bottom: 2.5rem;">
+        <h3 style="margin-top: 0; margin-bottom: 1rem;">Feedback Received</h3>
+        <div style="max-height: 220px; overflow-y: auto; padding-right: 8px;">
+            {% for r in my_reviews_received|reverse %}
+            <div
+                style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                <div style="font-size: 0.85rem; color: #fff; flex: 1; font-style: italic;">"{{ r.remarks }}"</div>
+                <div
+                    style="font-size: 0.75rem; color: var(--accent); margin-left: 1rem; white-space: nowrap; font-weight: 600;">
+                    By {{ r.reviewer_name }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="glass-card"
+        style="text-align: center; padding: 2.5rem; margin-bottom: 2.5rem; border-color: rgba(99,102,241,0.15);">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📭</div>
+        <p style="color: var(--text-muted);">No performance reviews received yet. They will appear here once your team
+            submits feedback.</p>
+    </div>
+    {% endif %}
+
+    <!-- ---- My Projects / Review Status ---- -->
+    <h2 style="margin-bottom: 1.2rem;">My Projects</h2>
+    {% if project_status %}
+    <div style="display: grid; gap: 1rem; margin-bottom: 2.5rem;">
+        {% for item in project_status %}
+        <div class="glass-card" style="margin-bottom: 0; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;
+            border-left: 4px solid {% if item.completed %}var(--accent){% else %}rgba(239,68,68,0.6){% endif %};">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+                    <h3 style="margin: 0; background: none; -webkit-text-fill-color: var(--text-main);">{{
+                        item.project.name }}</h3>
+                    {% if item.completed %}
+                    <span
+                        style="background: rgba(16,185,129,0.15); color: var(--accent); font-size: 0.7rem; font-weight: 700; padding: 2px 10px; border-radius: 20px;">✓
+                        REVIEW SUBMITTED</span>
+                    {% else %}
+                    <span
+                        style="background: rgba(239,68,68,0.1); color: #f87171; font-size: 0.7rem; font-weight: 700; padding: 2px 10px; border-radius: 20px;">⏳
+                        REVIEW PENDING</span>
+                    {% endif %}
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Sprint: {{ item.project.sprint }} |
+                    Release: {{ item.project.release_date }}</p>
+            </div>
+            {% if not item.completed %}
+            <a href="/review?project_id={{ item.project.id }}" class="btn btn-primary"
+                style="padding: 0.6rem 1.5rem; font-size: 0.85rem;">Submit Review →</a>
+            {% else %}
+            <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600;">✓ Done</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <p>You are not assigned to any projects yet.</p>
+    </div>
+    {% endif %}
+
+    <!-- ---- Reviews I've Given ---- -->
+    {% if given_by_project %}
+    <h2 style="margin-bottom: 1.2rem;">Reviews I've Submitted</h2>
+    {% for pid, data in given_by_project.items() %}
+    <div class="glass-card" style="margin-bottom: 1.5rem;">
+        <h3
+            style="margin-top: 0; color: var(--primary); font-size: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+            📁 {{ data.project_name }}
+        </h3>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="text-align: left; opacity: 0.6; font-size: 0.75rem; text-transform: uppercase;">
+                        <th style="padding: 8px 12px;">Person Rated</th>
+                        <th style="padding: 8px 12px;">Role</th>
+                        <th style="padding: 8px 12px;">M1</th>
+                        <th style="padding: 8px 12px;">M2</th>
+                        <th style="padding: 8px 12px;">M3</th>
+                        <th style="padding: 8px 12px;">Overall</th>
+                        <th style="padding: 8px 12px;">Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in data.entries %}
+                    <tr style="border-top: 1px solid rgba(255,255,255,0.04);">
+                        <td style="padding: 10px 12px; font-weight: 700; color: #fff;">{{ r.rated_person }}</td>
+                        <td style="padding: 10px 12px;"><span
+                                style="font-size: 0.7rem; background: rgba(255,255,255,0.07); padding: 2px 8px; border-radius: 4px;">{{
+                                r.rated_role }}</span></td>
+                        <td style="padding: 10px 12px; color: var(--primary);">{{ r.score_1 }}</td>
+                        <td style="padding: 10px 12px; color: var(--primary);">{{ r.score_2 }}</td>
+                        <td style="padding: 10px 12px; color: var(--primary);">{{ r.score_3 }}</td>
+                        <td style="padding: 10px 12px;">
+                            {% set ov = ((r.score_1 + r.score_2 + r.score_3) / 3)|round(1) %}
+                            <span
+                                class="score-badge {% if ov >= 4.5 %}score-high{% elif ov >= 3.5 %}score-mid{% else %}score-low{% endif %}">{{
+                                ov }}</span>
+                        </td>
+                        <td
+                            style="padding: 10px 12px; color: var(--text-muted); font-style: italic; font-size: 0.8rem;">
+                            {{ r.remarks[:60] }}{% if r.remarks|length > 60 %}...{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+</div>
+{% endif %}
+
+{% endblock %}

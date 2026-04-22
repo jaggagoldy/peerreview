@@ -1,0 +1,207 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-card animate-fade">
+    {% if already_reviewed %}
+    <div style="text-align: center; padding: 4rem;">
+        <div style="font-size: 3rem; color: var(--accent); margin-bottom: 2rem;">✓</div>
+        <h2>Review Completed</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">You have already submitted your feedback for this
+            project.</p>
+        <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+    </div>
+    {% else %}
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 2rem;">
+        <div>
+            <h1>Project Review Form</h1>
+            <p style="color: var(--text-muted);">Provide objective feedback for your team members in <b>{{
+                    selected_project.name if selected_project else 'Select Project' }}</b></p>
+        </div>
+
+        <!-- Legend -->
+        <div class="glass-card"
+            style="padding: 1rem; margin-bottom: 0px; border-color: rgba(99, 102, 241, 0.4); max-width: 450px;">
+            <div
+                style="font-weight: 700; font-size: 0.8rem; margin-bottom: 8px; color: var(--primary); letter-spacing: 1px;">
+                RATING GUIDE</div>
+            <div style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <span><b style="color: #ef4444;">1:</b> Poor / Low</span>
+                <span><b style="color: #f59e0b;">3:</b> Good / Average</span>
+                <span><b style="color: #10b981;">5:</b> Outstanding</span>
+            </div>
+        </div>
+    </div>
+
+    <form action="/review" method="get"
+        style="margin-bottom: 2.5rem; background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px;">
+        <div class="form-group" style="max-width: 400px; margin-bottom: 0;">
+            <label style="font-size: 0.8rem; opacity: 0.7;">Select Project to Review</label>
+            <select name="project_id" onchange="this.form.submit()" style="background: rgba(0,0,0,0.2);">
+                <option value="">Choose a project...</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project and selected_project.id==p.id %}selected{% endif %}>{{
+                    p.name }} ({{ p.sprint }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    {% if selected_project %}
+    <form action="/review" method="post">
+        <input type="hidden" name="project_id" value="{{ selected_project.id }}">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 3rem; opacity: 0.8;">
+            <div class="form-group">
+                <label>Reviewer Name</label>
+                <input type="text" name="reviewer_name" value="{{ user.name }}" readonly
+                    style="background: rgba(255,255,255,0.05);">
+            </div>
+            <div class="form-group">
+                <label>Reviewer Role</label>
+                <input type="text" name="reviewer_role" value="{{ user.role }}" readonly
+                    style="background: rgba(255,255,255,0.05);">
+            </div>
+        </div>
+
+        <h2
+            style="margin-top: 3rem; color: var(--primary); font-size: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+            Peer Ratings</h2>
+
+        <div style="overflow-x: auto;">
+            <table class="review-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px;">
+                <thead>
+                    <tr
+                        style="text-align: left; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">
+                        <th style="padding: 0.5rem 1rem;">Team Member</th>
+                        <th style="padding: 0.5rem 1rem;">Metric 1</th>
+                        <th style="padding: 0.5rem 1rem;">Metric 2</th>
+                        <th style="padding: 0.5rem 1rem;">Metric 3</th>
+                        <th style="padding: 0.5rem 1rem; width: 120px;">POC Perf</th>
+                        <th style="padding: 0.5rem 1rem;">Specific Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person, role in all_members %}
+                    <tr style="background: rgba(255,255,255,0.03); transition: transform 0.2s;">
+                        <td
+                            style="padding: 1.2rem 1rem; border-radius: 12px 0 0 12px; border-left: 3px solid var(--primary);">
+                            <div style="font-weight: 700; color: #fff;">{{ person }}</div>
+                            <div
+                                style="font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase;">
+                                {{ role }}</div>
+                        </td>
+
+                        {% if role == 'Dev' %}
+                        {% set l1 = 'Accountability' %}{% set l2 = 'Productivity' %}{% set l3 = 'Coordination' %}
+                        {% elif role == 'QA' %}
+                        {% set l1 = 'Test Coverage' %}{% set l2 = 'Bug Quality' %}{% set l3 = 'Communication' %}
+                        {% elif role == 'Tech Lead' %}
+                        {% set l1 = 'Technical Guidance' %}{% set l2 = 'Code Quality Support' %}{% set l3 = 'Team
+                        Mentorship' %}
+                        {% else %}
+                        {% set l1 = 'Req Clarity' %}{% set l2 = 'Support' %}{% set l3 = 'Change Handle' %}
+                        {% endif %}
+
+                        <td style="padding: 1rem 0.5rem;">
+                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l1 }}</div>
+                            <select name="rating[{{ person }}][score_1]" required class="rating-select">
+                                <option value="5">5</option>
+                                <option value="4">4</option>
+                                <option value="3" selected>3</option>
+                                <option value="2">2</option>
+                                <option value="1">1</option>
+                            </select>
+                        </td>
+                        <td style="padding: 1rem 0.5rem;">
+                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l2 }}</div>
+                            <select name="rating[{{ person }}][score_2]" required class="rating-select">
+                                <option value="5">5</option>
+                                <option value="4">4</option>
+                                <option value="3" selected>3</option>
+                                <option value="2">2</option>
+                                <option value="1">1</option>
+                            </select>
+                        </td>
+                        <td style="padding: 1rem 0.5rem;">
+                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l3 }}</div>
+                            <select name="rating[{{ person }}][score_3]" required class="rating-select">
+                                <option value="5">5</option>
+                                <option value="4">4</option>
+                                <option value="3" selected>3</option>
+                                <option value="2">2</option>
+                                <option value="1">1</option>
+                            </select>
+                        </td>
+                        <td style="padding: 1rem 0.5rem;">
+                            {% if person == selected_project.dev_poc or person == selected_project.qa_poc %}
+                            <div
+                                style="font-size: 0.65rem; color: var(--accent); margin-bottom: 4px; font-weight: bold;">
+                                POC</div>
+                            <select name="rating[{{ person }}][score_poc]" class="rating-select poc-select">
+                                <option value="">N/A</option>
+                                <option value="5">5</option>
+                                <option value="4">4</option>
+                                <option value="3">3</option>
+                                <option value="1">1</option>
+                            </select>
+                            {% else %}
+                            <div style="color: rgba(255,255,255,0.1); font-size: 0.8rem; text-align: center;">-</div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.2rem 1rem; border-radius: 0 12px 12px 0;">
+                            <textarea name="rating[{{ person }}][remark]" placeholder="Notes for {{ person }}..."
+                                style="font-size: 0.8rem; height: 50px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 6px; width: 100%; min-width: 150px;"
+                                required></textarea>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 4rem;">
+            <div class="form-group">
+                <label style="color: var(--accent); font-weight: bold;">Delay Reason (if any)</label>
+                <input type="text" name="delay_reason" placeholder="e.g. Dependencies on other team, API failures..."
+                    style="background: rgba(255,0,0,0.03); border-color: rgba(239, 68, 68, 0.2);">
+            </div>
+            <div class="form-group">
+                <label style="color: var(--primary); font-weight: bold;">Overall Process Improvements</label>
+                <textarea name="improvement_feedback" rows="3" placeholder="Suggestions for the next sprint/project..."
+                    required
+                    style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: #fff; padding: 1rem;"></textarea>
+            </div>
+        </div>
+
+        <div style="margin-top: 4rem; text-align: right; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+            <button type="submit" class="btn btn-primary"
+                style="padding: 1.2rem 5rem; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);">
+                Complete Review Submission
+            </button>
+        </div>
+    </form>
+    {% endif %}
+    {% endif %}
+</div>
+
+<style>
+    .rating-select {
+        background: rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+        color: #fff !important;
+        width: 100% !important;
+    }
+
+    .poc-select {
+        border-color: rgba(99, 102, 241, 0.4) !important;
+    }
+
+    .review-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.07) !important;
+        transform: scale(1.002);
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-card">
+    <h1>Project Setup</h1>
+    <form action="/setup" method="post">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" name="name" placeholder="e.g. Apollo Launch" required>
+            </div>
+            <div class="form-group">
+                <label>Sprint / Release</label>
+                <input type="text" name="sprint" placeholder="e.g. Q2 - Sprint 4" required>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 1rem; font-size: 1.1rem; color: var(--text-main);">Timeline</h3>
+        <div
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div class="form-group">
+                <label>Design Date</label>
+                <input type="date" name="design_date" required>
+            </div>
+            <div class="form-group">
+                <label>Dev Start</label>
+                <input type="date" name="dev_start" required>
+            </div>
+            <div class="form-group">
+                <label>QA Ready</label>
+                <input type="date" name="qa_start" required>
+            </div>
+            <div class="form-group">
+                <label>QA End</label>
+                <input type="date" name="qa_end" required>
+            </div>
+            <div class="form-group">
+                <label>Release Date</label>
+                <input type="date" name="release_date" required>
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.1rem; color: var(--text-main);">Team Selection</h3>
+        <div class="form-group">
+            <label>Dev Team</label>
+            <div class="multi-select">
+                {% for dev in dev_list %}
+                <label class="checkbox-item">
+                    <input type="checkbox" name="dev_team" value="{{ dev }}"> {{ dev }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>QA Team</label>
+            <div class="multi-select" style="grid-template-columns: 1fr 1fr 1fr;">
+                {% for qa in qa_list %}
+                <label class="checkbox-item">
+                    <input type="checkbox" name="qa_team" value="{{ qa }}"> {{ qa }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Product Owner</label>
+            <select name="product" required>
+                <option value="">Select...</option>
+                {% for p in product_list %}
+                <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group">
+                <label>Dev POC</label>
+                <select name="dev_poc" id="dev_poc_select" required>
+                    <option value="">Select from team...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>QA POC</label>
+                <select name="qa_poc" id="qa_poc_select" required>
+                    <option value="">Select from team...</option>
+                </select>
+            </div>
+            <div style="margin-top: 2rem; text-align: right;">
+                <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem;">Initialize Project</button>
+            </div>
+    </form>
+</div>
+
+<div class="glass-card animate-fade" style="margin-top: 2rem;">
+    <h2>Existing Projects</h2>
+    <div style="display: grid; gap: 1rem;">
+        {% for p in projects %}
+        <div
+            style="padding: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin-bottom: 0px; font-size: 1.1rem;">{{ p.name }}</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Release:
+                    {{ p.release_date }}</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: var(--primary); font-size: 0.9rem; font-weight: 600;">POC: {{ p.dev_poc }} / {{
+                    p.qa_poc }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if not projects %}
+        <p style="color: var(--text-muted); text-align: center; padding: 2rem;">No projects created yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Dynamic POC selection logic
+    const devCheckboxes = document.querySelectorAll('input[name="dev_team"]');
+    const qaCheckboxes = document.querySelectorAll('input[name="qa_team"]');
+    const devPocSelect = document.getElementById('dev_poc_select');
+    const qaPocSelect = document.getElementById('qa_poc_select');
+
+    function updatePocOptions(checkboxes, selectEl) {
+        const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+        const currentValue = selectEl.value;
+        selectEl.innerHTML = '<option value="">Select from team...</option>';
+        selected.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            if (v === currentValue) opt.selected = true;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    devCheckboxes.forEach(cb => cb.addEventListener('change', () => updatePocOptions(devCheckboxes, devPocSelect)));
+    qaCheckboxes.forEach(cb => cb.addEventListener('change', () => updatePocOptions(qaCheckboxes, qaPocSelect)));
+</script>
+{% endblock %}
