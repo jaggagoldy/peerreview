@@ -438,10 +438,10 @@ async def submit_reviews(
     
     for person_name, scores in ratings_raw.items():
         role = ""
-        if person_name in devs: role = "Dev"
+        if person_name == project.tech_lead_name: role = "Tech Lead"
+        elif person_name in devs: role = "Dev"
         elif person_name in qas: role = "QA"
         elif person_name == project.product_owner: role = "Product"
-        elif person_name == project.tech_lead_name: role = "Tech Lead"
         
         review = Review(
             project_id=project_id,
@@ -553,6 +553,9 @@ async def dashboard(
             team_sums[r.rated_role]["s3"] += r.score_3
             team_sums[r.rated_role]["count"] += 1
 
+    # Precompute user role map early for the leaderboard
+    user_role_map = {u.name: u.role for u in all_users}
+
     leaderboard = []
     for name, data in stats.items():
         # Check overall POC count for this person
@@ -563,9 +566,11 @@ async def dashboard(
         s3_avg = data["s3_total"] / data["count"]
         overall = (s1_avg + s2_avg + s3_avg) / 3
         
+        current_role = user_role_map.get(name, data["role"])
+        
         leaderboard.append({
             "name": name,
-            "role": data["role"],
+            "role": current_role,
             "s1": round(s1_avg, 2),
             "s2": round(s2_avg, 2),
             "s3": round(s3_avg, 2),
@@ -665,7 +670,7 @@ async def dashboard(
     avg_tl_score = round(sum(tl_scores) / len(tl_scores), 2) if tl_scores else 0
 
     # Smart filter maps for JS-driven dropdown auto-sync
-    user_role_map = {u.name: u.role for u in all_users}
+    # user_role_map is already defined above
 
     user_projects_map = {}
     for p in all_projects:
@@ -799,6 +804,12 @@ async def delete_project(
         )
         session.add(deleted)
         session.delete(project)
+        
+        # Also delete all associated reviews for this project
+        reviews_to_delete = session.exec(select(Review).where(Review.project_id == project.id)).all()
+        for r in reviews_to_delete:
+            session.delete(r)
+            
         session.commit()
     return RedirectResponse(url="/", status_code=303)
 
