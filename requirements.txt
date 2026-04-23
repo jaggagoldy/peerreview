@@ -4,3 +4,6 @@ sqlalchemy
 sqlmodel
 jinja2
 python-multipart
+itsdangerous
+gspread
+google-auth
