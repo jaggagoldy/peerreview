@@ -515,10 +515,10 @@ async def submit_reviews(
     for person_name, scores in ratings_raw.items():
         # Validate rated person is in project
         role = ""
-        if person_name in devs: role = "Dev"
+        if person_name == project.tech_lead_name: role = "Tech Lead"
+        elif person_name in devs: role = "Dev"
         elif person_name in qas: role = "QA"
         elif person_name == project.product_owner: role = "Product"
-        elif person_name == project.tech_lead_name: role = "Tech Lead"
         
         if not role: continue
         
