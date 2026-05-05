@@ -160,6 +160,11 @@
                     QA POC: <span style="color:var(--accent);">{{ project_info.qa_poc }}</span>
                     {% if project_info.tech_lead_name %} &nbsp;|&nbsp; Tech Lead: <span style="color:#a78bfa;">{{
                         project_info.tech_lead_name }}</span>{% endif %}
+                    {% if project_info.asana_link %}
+                    <div style="margin-top:10px;">
+                        <a href="{{ project_info.asana_link }}" target="_blank" class="btn" style="padding:4px 12px; font-size:0.75rem; background:rgba(99,102,241,0.15); border:1px solid var(--primary); color:var(--primary);">🔗 View Task on Asana</a>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <!-- Timeline Row -->

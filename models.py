@@ -16,11 +16,12 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     sprint: str
+    asana_link: Optional[str] = None # New Field
     design_date: Optional[date] = None
     dev_start: Optional[date] = None
     qa_start: Optional[date] = None
     qa_end: Optional[date] = None
-    release_date: date # Release date remains mandatory as the project 'end'
+    release_date: date
     dev_team: str # Stored as JSON string
     qa_team: str # Stored as JSON string
     product_owner: str

@@ -46,6 +46,16 @@
         </div>
     </form>
 
+    {% if selected_project and selected_project.asana_link %}
+    <div style="margin-bottom: 2rem; padding: 1rem; background: rgba(99,102,241,0.08); border-radius: 12px; border: 1px solid rgba(99,102,241,0.25); display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.2rem;">🔗</span>
+        <div>
+            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; margin-bottom: 2px;">Project Task Reference</div>
+            <a href="{{ selected_project.asana_link }}" target="_blank" style="color: var(--primary); font-weight: 700; text-decoration: none; font-size: 0.95rem;">View Task on Asana</a>
+        </div>
+    </div>
+    {% endif %}
+
     {% if selected_project %}
     <form action="/review" method="post">
         <input type="hidden" name="project_id" value="{{ selected_project.id }}">

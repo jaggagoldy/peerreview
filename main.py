@@ -90,9 +90,9 @@ This is an automated notification. CC: {', '.join(cc_emails)}
         print(f"❌ Failed to send email: {e}")
 
 # Master Data
-DEV_TEAM_LIST = ["Yash Mangal", "Abhishek", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
+DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
-PRODUCT_LIST = ["Abhinav Kapoor", "Prateek Sharma"]
+PRODUCT_LIST = ["Abhinav Kapoor", "Himanshu Gupta", "Hridayesh Gupta"] # Removed Prateek Sharma, added Himanshu & Hridayesh
 TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
 
 USER_EMAILS = [
@@ -110,7 +110,6 @@ USER_EMAILS = [
     {"email": "ashish.karn@quickreply.ai", "name": "Ashish Karn", "role": "Dev", "admin": False},
     {"email": "anirudh.sharma@quickreply.ai", "name": "Anirudh Sharma", "role": "QA", "admin": False},
     {"email": "hari.sachdeva@quickreply.ai", "name": "Hari Sachdeva", "role": "Dev", "admin": False},
-    {"email": "prateek.sharma@quickreply.ai", "name": "Prateek Sharma", "role": "Product", "admin": False},
     {"email": "yash.mangal@quickreply.ai", "name": "Yash Mangal", "role": "Dev", "admin": False},
     {"email": "ameer.basha@quickreply.ai", "name": "Shaik Ameer Basha", "role": "QA", "admin": False},
     {"email": "manik.gandhi@quickreply.ai", "name": "Manik Gandhi", "role": "Dev", "admin": False},
@@ -346,6 +345,7 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
 async def create_project(
     name: str = Form(...),
     sprint: str = Form(...),
+    asana_link: Optional[str] = Form(None), # New
     design_date: Optional[str] = Form(None),
     dev_start: Optional[str] = Form(None),
     qa_start: Optional[str] = Form(None),
@@ -372,6 +372,7 @@ async def create_project(
     project = Project(
         name=name,
         sprint=sprint,
+        asana_link=asana_link,
         design_date=parse_dt(design_date),
         dev_start=parse_dt(dev_start),
         qa_start=parse_dt(qa_start),
@@ -668,6 +669,7 @@ async def dashboard(
                 "dev_poc": p_obj.dev_poc,
                 "qa_poc": p_obj.qa_poc,
                 "tech_lead_name": getattr(p_obj, 'tech_lead_name', ''),
+                "asana_link": p_obj.asana_link,
                 "design_date": p_obj.design_date,
                 "dev_start": p_obj.dev_start,
                 "qa_start": p_obj.qa_start,
