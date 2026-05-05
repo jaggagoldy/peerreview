@@ -26,12 +26,12 @@
             <div style="font-size: 2.5rem; font-weight: 800; color: var(--primary);">{{ project_status|length }}</div>
         </div>
         <div class="glass-card" style="text-align: center; margin-bottom: 0; border-color: rgba(16,185,129,0.3);">
-            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">REVIEWS COMPLETED</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">{{ project_status | selectattr('completed') | list | length }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">LIVE PROJECTS</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">{{ live_count }}</div>
         </div>
         <div class="glass-card" style="text-align: center; margin-bottom: 0; border-color: rgba(239,68,68,0.2);">
-            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">PENDING REVIEWS</div>
-            <div style="font-size: 2.5rem; font-weight: 800; color: #f87171;">{{ project_status | rejectattr('completed') | list | length }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px;">PENDING PROJECTS</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: #f87171;">{{ pending_count }}</div>
         </div>
     </div>
 
@@ -40,17 +40,17 @@
     {% if project_status %}
     <div style="display: grid; gap: 0.8rem;">
         {% for item in project_status %}
-        <div class="project-card-collapsible" style="border-radius: 14px; overflow: hidden; border: 1px solid {% if item.completed %}rgba(16,185,129,0.25){% else %}rgba(239,68,68,0.2){% endif %}; background: rgba(255,255,255,0.02);">
+        <div class="project-card-collapsible" style="border-radius: 14px; overflow: hidden; border: 1px solid {% if item.stats.is_live %}rgba(16,185,129,0.25){% else %}rgba(239,68,68,0.2){% endif %}; background: rgba(255,255,255,0.02);">
             <!-- Header (clickable) -->
             <div class="project-card-header" onclick="toggleProject('p{{ item.project.id }}')"
-                style="padding: 1.2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; border-left: 4px solid {% if item.completed %}var(--accent){% else %}rgba(239,68,68,0.6){% endif %};">
+                style="padding: 1.2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; border-left: 4px solid {% if item.stats.is_live %}var(--accent){% else %}rgba(239,68,68,0.6){% endif %};">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span class="collapse-arrow" id="arrow-p{{ item.project.id }}" style="font-size: 0.7rem; opacity: 0.5; transition: transform 0.2s;">▶</span>
                     <div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-weight: 700; font-size: 1rem; color: #fff;">{{ item.project.name }}</span>
-                            {% if item.completed %}
-                            <span style="background: rgba(16,185,129,0.15); color: var(--accent); font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 20px;">✓ REVIEWED</span>
+                            {% if item.stats.is_live %}
+                            <span style="background: rgba(16,185,129,0.15); color: var(--accent); font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 20px;">✓ LIVE</span>
                             {% else %}
                             <span style="background: rgba(239,68,68,0.1); color: #f87171; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 20px;">⏳ PENDING</span>
                             {% endif %}
@@ -67,6 +67,29 @@
             <!-- Collapsible body -->
             <div class="project-collapse-body" id="p{{ item.project.id }}" style="display: none; padding: 0 1.5rem 1.5rem;">
                 <div style="height: 1px; background: rgba(255,255,255,0.04); margin-bottom: 1.2rem;"></div>
+                
+                <!-- Submission Stats -->
+                <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 1rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 0.85rem;">
+                        <span style="opacity: 0.7;">Submissions:</span> 
+                        <strong style="color: var(--primary);">{{ item.stats.submitted_count }}</strong> / {{ item.stats.expected_count }}
+                        {% if item.stats.is_live %}
+                        <span style="margin-left: 10px; background: linear-gradient(90deg, #10b981, #059669); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">LIVE</span>
+                        {% else %}
+                        <span style="margin-left: 10px; background: rgba(245,158,11,0.15); color: #fbbf24; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(245,158,11,0.3);">{{ item.stats.pending_count }} PENDING</span>
+                        {% endif %}
+                    </div>
+                    {% if not item.stats.is_live %}
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        Pending: <span style="color: #f87171;">
+                        {% set pending_names = [] %}
+                        {% for name in item.stats.expected_names %}{% if name not in item.stats.submitted_names %}{% set _ = pending_names.append(name) %}{% endif %}{% endfor %}
+                        {{ pending_names | join(', ') }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; font-size: 0.82rem; color: var(--text-muted);">
                     <div><span style="opacity: 0.5;">Dev Team:</span><br><span style="color: #fff;">{{ item.project.dev_team | from_json | join(', ') }}</span></div>
                     <div><span style="opacity: 0.5;">QA Team:</span><br><span style="color: #fff;">{{ item.project.qa_team | from_json | join(', ') }}</span></div>
@@ -136,18 +159,7 @@
         </div>
     </div>
 
-    <!-- Feedback received -->
-    <div class="glass-card" style="margin-bottom: 2.5rem;">
-        <h3 style="margin-top: 0; margin-bottom: 1rem;">Feedback Received</h3>
-        <div style="max-height: 220px; overflow-y: auto; padding-right: 8px;">
-            {% for r in my_reviews_received|reverse %}
-            <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
-                <div style="font-size: 0.85rem; color: #fff; flex: 1; font-style: italic;">"{{ r.remarks }}"</div>
-                <div style="font-size: 0.75rem; color: var(--accent); margin-left: 1rem; white-space: nowrap; font-weight: 600;">By {{ r.reviewer_name }}</div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+    <!-- Feedback removed from homepage to maintain privacy and focus on Dashboard view -->
     {% else %}
     <div class="glass-card" style="text-align: center; padding: 2.5rem; margin-bottom: 2.5rem; border-color: rgba(99,102,241,0.15);">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">📭</div>
@@ -174,6 +186,12 @@
                             {% else %}
                             <span style="background: rgba(239,68,68,0.1); color: #f87171; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 20px;">⏳ REVIEW PENDING</span>
                             {% endif %}
+
+                            {% if item.stats.is_live %}
+                            <span style="background: linear-gradient(90deg, #10b981, #059669); color: #fff; font-size: 0.62rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">LIVE RATING</span>
+                            {% else %}
+                            <span style="background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4); font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">RATING HIDDEN</span>
+                            {% endif %}
                         </div>
                         <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">Sprint: {{ item.project.sprint }} &nbsp;|&nbsp; Release: {{ item.project.release_date }}</div>
                     </div>
@@ -182,7 +200,12 @@
                 <a href="/review?project_id={{ item.project.id }}" class="btn btn-primary" onclick="event.stopPropagation()"
                     style="padding: 0.5rem 1.2rem; font-size: 0.82rem; flex-shrink: 0;">Submit Review →</a>
                 {% else %}
-                <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600; flex-shrink: 0;">✓ Done</span>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600; display: block;">✓ Done</span>
+                    {% if not item.stats.is_live %}
+                    <span style="font-size: 0.65rem; opacity: 0.5; font-style: italic;">Waiting for others...</span>
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
 

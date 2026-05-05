@@ -249,6 +249,28 @@ async def reset_own_password(
     session.commit()
     return RedirectResponse(url="/?profile_success=Password+updated+successfully", status_code=303)
 
+def get_project_stats(p: Project, all_reviews: List[Review]):
+    """
+    Helper to calculate membership and live status for a project.
+    """
+    devs = json.loads(p.dev_team) if p.dev_team else []
+    qas = json.loads(p.qa_team) if p.qa_team else []
+    expected_reviewers = set([m for m in (devs + qas + [p.product_owner, getattr(p, 'tech_lead_name', '')]) if m])
+    
+    submitted_reviewers = set([r.reviewer_name for r in all_reviews if r.project_id == p.id])
+    
+    pending_count = len(expected_reviewers - submitted_reviewers)
+    is_live = pending_count == 0 and len(expected_reviewers) > 0
+    
+    return {
+        "expected_count": len(expected_reviewers),
+        "submitted_count": len(submitted_reviewers),
+        "pending_count": pending_count,
+        "is_live": is_live,
+        "expected_names": list(expected_reviewers),
+        "submitted_names": list(submitted_reviewers)
+    }
+
 @app.get("/", response_class=HTMLResponse)
 async def index(
     request: Request,
@@ -274,17 +296,37 @@ async def index(
             or getattr(p, 'tech_lead_name', '') == current_user.name
         ]
 
-    # Build project-level review status (pending / completed)
+    # Build project-level status & stats
     project_status = []
+    live_project_ids = set()
+    live_count = 0
+    
     for p in user_projects:
-        submitted = any(r.reviewer_name == current_user.name and r.project_id == p.id for r in all_reviews)
+        stats = get_project_stats(p, all_reviews)
+        submitted = current_user.name in stats["submitted_names"]
+        
         project_status.append({
             "project": p,
-            "completed": submitted
+            "completed": submitted,
+            "stats": stats
         })
+        if stats["is_live"]:
+            live_project_ids.add(p.id)
+            live_count += 1
+
+    pending_count = len(project_status) - live_count
 
     # ---- Personal Performance Stats (reviews RECEIVED about the user) ----
-    my_reviews_received = [r for r in all_reviews if r.rated_person == current_user.name]
+    # RULES: 
+    # 1. Admin sees everything.
+    # 2. Regular user sees reviews ONLY from LIVE projects.
+    if current_user.is_admin:
+        my_reviews_received = [r for r in all_reviews if r.rated_person == current_user.name]
+    else:
+        my_reviews_received = [
+            r for r in all_reviews 
+            if r.rated_person == current_user.name and r.project_id in live_project_ids
+        ]
 
     my_role = current_user.role
     s1_avg = s2_avg = s3_avg = overall_avg = 0
@@ -318,6 +360,8 @@ async def index(
         "request": request,
         "user": current_user,
         "project_status": project_status,
+        "live_count": live_count,
+        "pending_count": pending_count,
         "my_reviews_received": my_reviews_received,
         "s1_avg": s1_avg, "s2_avg": s2_avg, "s3_avg": s3_avg, "overall_avg": overall_avg,
         "m1": m1, "m2": m2, "m3": m3,
@@ -436,18 +480,19 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
             product = selected_project.product_owner
             tech_lead_name = getattr(selected_project, 'tech_lead_name', '')
 
-    # Build rateable members: everyone rates the Tech Lead; TL doesn't rate themselves
+    # Build rateable members: Anyone can rate anyone else in the project, but NOT themselves.
     is_tl = current_user.role == "Tech Lead" or current_user.is_admin
     all_members = []
     for d in devs:
-        if not (is_tl and d == current_user.name):
+        if d != current_user.name:
             all_members.append((d, "Dev"))
     for q in qas:
-        if not (is_tl and q == current_user.name):
+        if q != current_user.name:
             all_members.append((q, "QA"))
-    if product:
+    if product and product != current_user.name:
         all_members.append((product, "Product"))
-    # Add Tech Lead as a rateable person (skip if reviewer IS the tech lead)
+    
+    # Add Tech Lead as a rateable person
     if tech_lead_name and tech_lead_name != current_user.name:
         all_members.append((tech_lead_name, "Tech Lead"))
 
@@ -577,6 +622,15 @@ async def dashboard(
     all_projects = session.exec(select(Project)).all()
     all_users = session.exec(select(User)).all()
 
+    # Calculate live status for all projects
+    live_project_ids = set()
+    project_metadata = {}
+    for p in all_projects:
+        p_stats = get_project_stats(p, all_reviews)
+        project_metadata[p.id] = p_stats
+        if p_stats["is_live"]:
+            live_project_ids.add(p.id)
+
     # For non-admins, only their assigned projects appear in the project dropdown
     if is_admin:
         visible_projects = all_projects
@@ -589,8 +643,13 @@ async def dashboard(
             or getattr(p, 'tech_lead_name', '') == current_user.name
         ]
 
+    # Filter base reviews: non-admins only see reviews from live projects
+    base_reviews = all_reviews
+    if not is_admin:
+        base_reviews = [r for r in all_reviews if r.project_id in live_project_ids]
+
     # Apply filters to current view
-    filtered_reviews = list(all_reviews)
+    filtered_reviews = list(base_reviews)
     if pid:
         filtered_reviews = [r for r in filtered_reviews if r.project_id == pid]
     if role:
@@ -669,6 +728,7 @@ async def dashboard(
             # Aggregate improvements for this project
             project_feedback = list(set([r.improvement_feedback for r in filtered_reviews if r.improvement_feedback]))
             selected_project_info = {
+                "id": p_obj.id,
                 "name": p_obj.name,
                 "sprint": p_obj.sprint,
                 "dev_poc": p_obj.dev_poc,
@@ -687,7 +747,12 @@ async def dashboard(
     user_profile = None
     single_user = user_name[0] if len(user_name) == 1 else None
     if single_user:
-        user_reviews = [r for r in all_reviews if r.rated_person == single_user]
+        # Non-admins only see reviews for themselves from live projects
+        if is_admin:
+            user_reviews = [r for r in all_reviews if r.rated_person == single_user]
+        else:
+            user_reviews = [r for r in all_reviews if r.rated_person == single_user and r.project_id in live_project_ids]
+        
         poc_projects = []
         for p in all_projects:
             if p.dev_poc == single_user or p.qa_poc == single_user:
@@ -716,7 +781,7 @@ async def dashboard(
                 avg = sum(project_scores[p_id]) / len(project_scores[p_id])
                 trend.append({"project": pj.name, "score": round(avg, 2), "date": pj.release_date.isoformat()})
 
-        # Best project: highest avg score across all their reviews per project
+        # Best project
         best_project = None
         if project_scores:
             best_pid = max(project_scores, key=lambda k: sum(project_scores[k]) / len(project_scores[k]))
@@ -725,16 +790,42 @@ async def dashboard(
             if best_pj:
                 best_project = {"name": best_pj.name, "score": best_score, "sprint": best_pj.sprint}
 
+        # Resolve role from user database
+        profile_user_obj = next((u for u in all_users if u.name == single_user), None)
+        profile_role = profile_user_obj.role if profile_user_obj else (user_reviews[0].rated_role if user_reviews else "Unknown")
+
+        # Get all projects this user is involved in (to show involvement status)
+        involved_projects = []
+        for p in all_projects:
+            is_involved = False
+            try:
+                if single_user in json.loads(p.dev_team) or single_user in json.loads(p.qa_team) or p.product_owner == single_user or getattr(p, 'tech_lead_name', '') == single_user:
+                    is_involved = True
+            except: pass
+            
+            if is_involved:
+                p_stats = project_metadata.get(p.id, {})
+                involved_projects.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "sprint": p.sprint,
+                    "is_live": p_stats.get("is_live", False),
+                    "pending_count": p_stats.get("pending_count", 0),
+                    "my_score": round(sum(project_scores[p.id]) / len(project_scores[p.id]), 2) if p.id in project_scores else None
+                })
+
         user_profile = {
             "name": single_user,
-            "role": user_reviews[0].rated_role if user_reviews else current_user.role,
-            "total_projects": len(set(r.project_id for r in user_reviews)),
+            "role": profile_role,
+            "total_projects": len(involved_projects),
+            "live_projects": len([p for p in involved_projects if p["is_live"]]),
             "poc_count": len(poc_projects),
             "s1_avg": u_s1,
             "s2_avg": u_s2,
             "s3_avg": u_s3,
             "reviews": user_reviews,
             "trend": trend,
+            "involved_projects": involved_projects,
             "all_projects": {p.id: p.name for p in all_projects},
             "best_project": best_project
         }
@@ -776,6 +867,7 @@ async def dashboard(
         "user_role_map": user_role_map,
         "user_projects_map": user_projects_map,
         "role_users_map": role_users_map,
+        "project_metadata": project_metadata,
     })
 
 
