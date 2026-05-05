@@ -36,16 +36,15 @@ SMTP_USER = "AKIARVESOK3RUPXF2W4R"
 SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
 FROM_EMAIL = "dev.peerreview@intelliticks.com" # Updated sender address
 
-def send_review_notification_email(user: User, project: Project, reviews: List[Review]):
+def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
     """
-    Sends a confirmation email to the user and CCs Hridayesh & Goldy.
+    Synchronous helper to send email.
     """
     to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
     
     subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
     
-    # Constructing the breakdown
     breakdown_text = ""
     for r in reviews:
         breakdown_text += f"""
@@ -81,13 +80,19 @@ This is an automated notification. CC: {', '.join(cc_emails)}
     msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         print(f"✅ Email sent successfully to {to_email}")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
+
+def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
+    """
+    Triggers email sending in the background.
+    """
+    background_tasks.add_task(send_review_notification_email_sync, user, project, reviews)
 
 # Master Data
 DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
@@ -538,7 +543,7 @@ async def submit_reviews(
 
     # --- EMAIL NOTIFICATION LOGIC ---
     try:
-        send_review_notification_email(current_user, project, submitted_reviews_summary)
+        send_review_notification_email(current_user, project, submitted_reviews_summary, background_tasks)
     except Exception as e:
         print(f"Email failed: {e}")
 
