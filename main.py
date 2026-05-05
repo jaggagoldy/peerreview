@@ -13,7 +13,6 @@ import os
 import threading
 import time
 from typing import List, Optional
-from google_sheets import sync_to_sheets, initialize_sheet
 
 app = FastAPI(title="360° Project Review System")
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
@@ -111,32 +110,45 @@ USER_EMAILS = [
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
-    initialize_sheet()
     # Seed users
     with Session(engine) as session:
         for u_data in USER_EMAILS:
             existing = session.exec(select(User).where(User.email == u_data["email"])).first()
             
-            # New Permission Logic:
-            # Dev, QA, PO: home, review
-            # Management: home, dashboard, setup
-            # Goldy (Superadmin): home, dashboard, setup, admin
-            
+            # Roles & Permissions Mapping
             role = u_data["role"]
             is_admin = u_data["admin"]
             
             if role in ["Dev", "QA", "Product"]:
-                tabs = ["home", "review"]
+                tabs = ["home", "review", "dashboard"] # Everyone sees dashboard for their own stats
             else:
-                tabs = ["home", "dashboard", "setup"]
+                tabs = ["home", "review", "dashboard", "setup"]
             
             perms = {"tabs": tabs}
             
-            # Special case for Goldy (Superadmin)
+            # Superadmin Access
             if u_data["email"] == "goldy.jagga@quickreply.ai":
                 perms["is_superadmin"] = True
-                if "admin" not in perms["tabs"]:
-                    perms["tabs"].append("admin")
+                if "admin" not in perms["tabs"]: perms["tabs"].append("admin")
+
+            if not existing:
+                user = User(
+                    email=u_data["email"],
+                    name=u_data["name"],
+                    role=u_data["role"],
+                    is_admin=is_admin,
+                    password_hash=hash_password("quickreply123"),
+                    permissions=json.dumps(perms)
+                )
+                session.add(user)
+            else:
+                # Update permissions/role if they've changed in code
+                existing.role = u_data["role"]
+                existing.is_admin = is_admin
+                existing.permissions = json.dumps(perms)
+                session.add(existing)
+        
+        session.commit()
 
             # Password Logic:
             # Management: quickreply123
@@ -480,8 +492,9 @@ async def submit_reviews(
     existing = session.exec(select(Review).where(Review.project_id == project_id, Review.reviewer_name == current_user.name)).first()
     if existing:
         return templates.TemplateResponse(request=request, name="review.html", context={
-            "error": "You have already submitted reviews for this project.",
-            "project": project,
+            "request": request,
+            "already_reviewed": True,
+            "selected_project": project,
             "user": current_user
         })
 
@@ -526,24 +539,6 @@ async def submit_reviews(
         )
         session.add(review)
         submitted_reviews_summary.append(review)
-
-        # Prepare data for Google Sheets sync
-        sheet_data = {
-            "date": date.today().isoformat(),
-            "project_name": project.name,
-            "reviewer_name": current_user.name,
-            "reviewer_role": current_user.role,
-            "rated_person": person_name,
-            "rated_role": role,
-            "score_1": int(scores.get("score_1", 0)),
-            "score_2": int(scores.get("score_2", 0)),
-            "score_3": int(scores.get("score_3", 0)),
-            "score_poc": scores.get("score_poc", "N/A"),
-            "remarks": scores.get("remark", ""),
-            "delay_reason": form_data.get("delay_reason", "")
-        }
-        if background_tasks:
-            background_tasks.add_task(sync_to_sheets, sheet_data)
     
     session.commit()
 
