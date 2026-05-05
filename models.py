@@ -57,6 +57,14 @@ class Review(SQLModel, table=True):
     improvement_feedback: str = Field(default="")
     delay_reason: str
 
+class DeletedProject(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int
+    name: str
+    deleted_by: str
+    deleted_at: date = Field(default_factory=date.today)
+    data_json: str # Store full project data as JSON for recovery
+
 sqlite_file_name = "data/database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 

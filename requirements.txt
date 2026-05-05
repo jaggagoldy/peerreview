@@ -1,6 +1,8 @@
 fastapi
-uvicorn
-sqlalchemy
+uvicorn[standard]
 sqlmodel
+sqlalchemy
 jinja2
 python-multipart
+itsdangerous
+aiofiles

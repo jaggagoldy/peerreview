@@ -1,14 +1,19 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, func
-from models import Project, Review, User, engine, create_db_and_tables
+from models import Project, Review, User, DeletedProject, engine, create_db_and_tables
 from datetime import date
 import hashlib
 import json
+import shutil
+import os
+import threading
+import time
 from typing import List, Optional
+from google_sheets import sync_to_sheets, initialize_sheet
 
 app = FastAPI(title="360° Project Review System")
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
@@ -106,30 +111,90 @@ USER_EMAILS = [
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    initialize_sheet()
     # Seed users
     with Session(engine) as session:
         for u_data in USER_EMAILS:
             existing = session.exec(select(User).where(User.email == u_data["email"])).first()
-            if not existing:
-                perms = {"tabs": ["home", "review", "dashboard"]}
-                if u_data["admin"]:
-                    perms["tabs"].append("setup")
-                
-                # Special case for Goldy (Superadmin)
-                if u_data["email"] == "goldy.jagga@quickreply.ai":
-                    perms["is_superadmin"] = True
-                    perms["tabs"].append("admin") # Special admin tab
+            
+            # New Permission Logic:
+            # Dev, QA, PO: home, review
+            # Management: home, dashboard, setup
+            # Goldy (Superadmin): home, dashboard, setup, admin
+            
+            role = u_data["role"]
+            is_admin = u_data["admin"]
+            
+            if role in ["Dev", "QA", "Product"]:
+                tabs = ["home", "review"]
+            else:
+                tabs = ["home", "dashboard", "setup"]
+            
+            perms = {"tabs": tabs}
+            
+            # Special case for Goldy (Superadmin)
+            if u_data["email"] == "goldy.jagga@quickreply.ai":
+                perms["is_superadmin"] = True
+                if "admin" not in perms["tabs"]:
+                    perms["tabs"].append("admin")
 
+            # Password Logic:
+            # Management: quickreply123
+            # Dev: Dev@123
+            # QA: Qa@123
+            # PO: Product@123
+            default_pass = "quickreply123"
+            if role == "Dev": default_pass = "Dev@123"
+            elif role == "QA": default_pass = "Qa@123"
+            elif role == "Product": default_pass = "Product@123"
+
+            if not existing:
                 user = User(
                     email=u_data["email"],
                     name=u_data["name"],
-                    role=u_data["role"],
-                    is_admin=u_data["admin"],
-                    password_hash=hash_password("quickreply123"),
+                    role=role,
+                    is_admin=is_admin,
+                    password_hash=hash_password(default_pass),
                     permissions=json.dumps(perms)
                 )
                 session.add(user)
+            else:
+                # Update role and admin status if they changed
+                existing.role = role
+                existing.is_admin = is_admin
+                existing.permissions = json.dumps(perms) # Update permissions for production
+                session.add(existing)
         session.commit()
+
+    # Start nightly backup scheduler in background thread
+    backup_thread = threading.Thread(target=nightly_backup_scheduler, daemon=True)
+    backup_thread.start()
+
+
+def nightly_backup_scheduler():
+    """Runs in background, creates a DB snapshot every day at 23:00."""
+    import datetime
+    while True:
+        now = datetime.datetime.now()
+        # Calculate seconds until next 23:00
+        target = now.replace(hour=23, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += datetime.timedelta(days=1)
+        wait_secs = (target - now).total_seconds()
+        time.sleep(wait_secs)
+        # Create backup
+        try:
+            backup_dir = "data/backups"
+            os.makedirs(backup_dir, exist_ok=True)
+            stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            src = "data/database.db"
+            dst = f"{backup_dir}/database_backup_{stamp}.db"
+            if os.path.exists(src):
+                shutil.copy2(src, dst)
+                print(f"[BACKUP] Snapshot created: {dst}")
+        except Exception as e:
+            print(f"[BACKUP] Failed: {e}")
+
 
 def get_session():
     with Session(engine) as session:
@@ -151,6 +216,8 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(request=request, name="login.html", context={"error": "Invalid email or password."})
     request.session["user"] = email
+    request.session["user_name"] = user.name
+    request.session["user_role"] = user.role
     request.session["is_admin"] = user.is_admin
     request.session["permissions"] = json.loads(user.permissions)
     return RedirectResponse(url="/", status_code=303)
@@ -160,8 +227,34 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login")
 
+# ---- Profile: Reset own password ----
+@app.post("/profile/reset-password")
+async def reset_own_password(
+    request: Request,
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user:
+        return RedirectResponse(url="/login")
+    if new_password != confirm_password:
+        return RedirectResponse(url="/?profile_error=Passwords+do+not+match", status_code=303)
+    if len(new_password) < 6:
+        return RedirectResponse(url="/?profile_error=Password+must+be+at+least+6+characters", status_code=303)
+    current_user.password_hash = hash_password(new_password)
+    session.add(current_user)
+    session.commit()
+    return RedirectResponse(url="/?profile_success=Password+updated+successfully", status_code=303)
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+async def index(
+    request: Request,
+    profile_success: Optional[str] = None,
+    profile_error: Optional[str] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
     if not current_user: return RedirectResponse(url="/login")
 
     all_projects = session.exec(select(Project)).all()
@@ -218,6 +311,7 @@ async def index(request: Request, session: Session = Depends(get_session), curre
             given_by_project[r.project_id] = {"project_name": p_obj.name if p_obj else "Unknown", "entries": []}
         given_by_project[r.project_id]["entries"].append(r)
 
+    perms = json.loads(current_user.permissions)
     return templates.TemplateResponse(request=request, name="index.html", context={
         "request": request,
         "user": current_user,
@@ -228,6 +322,9 @@ async def index(request: Request, session: Session = Depends(get_session), curre
         "given_by_project": given_by_project,
         "total_received": len(my_reviews_received),
         "total_given": len(my_reviews_given),
+        "perms_is_superadmin": perms.get("is_superadmin", False),
+        "profile_success": profile_success,
+        "profile_error": profile_error,
     })
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -361,6 +458,7 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
 async def submit_reviews(
     request: Request,
     project_id: int = Form(...),
+    background_tasks: BackgroundTasks = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -399,7 +497,6 @@ async def submit_reviews(
             ratings_raw[name][field] = value
 
     improvement = form_data.get("improvement_feedback", "")
-    
     submitted_reviews_summary = []
 
     for person_name, scores in ratings_raw.items():
@@ -410,11 +507,11 @@ async def submit_reviews(
         elif person_name == project.product_owner: role = "Product"
         elif person_name == project.tech_lead_name: role = "Tech Lead"
         
-        if not role: continue # Security: Don't allow rating random people
+        if not role: continue
         
         review = Review(
             project_id=project_id,
-            reviewer_name=current_user.name, # Enforce identity
+            reviewer_name=current_user.name,
             reviewer_role=current_user.role,
             rated_person=person_name,
             rated_role=role,
@@ -429,6 +526,24 @@ async def submit_reviews(
         )
         session.add(review)
         submitted_reviews_summary.append(review)
+
+        # Prepare data for Google Sheets sync
+        sheet_data = {
+            "date": date.today().isoformat(),
+            "project_name": project.name,
+            "reviewer_name": current_user.name,
+            "reviewer_role": current_user.role,
+            "rated_person": person_name,
+            "rated_role": role,
+            "score_1": int(scores.get("score_1", 0)),
+            "score_2": int(scores.get("score_2", 0)),
+            "score_3": int(scores.get("score_3", 0)),
+            "score_poc": scores.get("score_poc", "N/A"),
+            "remarks": scores.get("remark", ""),
+            "delay_reason": form_data.get("delay_reason", "")
+        }
+        if background_tasks:
+            background_tasks.add_task(sync_to_sheets, sheet_data)
     
     session.commit()
 
@@ -512,6 +627,9 @@ async def dashboard(
             team_sums[r.rated_role]["s3"] += r.score_3
             team_sums[r.rated_role]["count"] += 1
 
+    # Precompute user role map early for the leaderboard
+    user_role_map = {u.name: u.role for u in all_users}
+
     leaderboard = []
     for name, data in stats.items():
         # Check overall POC count for this person
@@ -522,9 +640,11 @@ async def dashboard(
         s3_avg = data["s3_total"] / data["count"]
         overall = (s1_avg + s2_avg + s3_avg) / 3
         
+        current_role = user_role_map.get(name, data["role"])
+        
         leaderboard.append({
             "name": name,
-            "role": data["role"],
+            "role": current_role,
             "s1": round(s1_avg, 2),
             "s2": round(s2_avg, 2),
             "s3": round(s3_avg, 2),
@@ -624,7 +744,7 @@ async def dashboard(
     avg_tl_score = round(sum(tl_scores) / len(tl_scores), 2) if tl_scores else 0
 
     # Smart filter maps for JS-driven dropdown auto-sync
-    user_role_map = {u.name: u.role for u in all_users}
+    # user_role_map is already defined above
 
     user_projects_map = {}
     for p in all_projects:
@@ -708,6 +828,82 @@ async def update_user(
         session.commit()
     
     return RedirectResponse(url="/admin/users", status_code=303)
+
+# ---- Superadmin: Reset any user's password ----
+@app.post("/admin/users/reset-password")
+async def admin_reset_password(
+    request: Request,
+    user_id: int = Form(...),
+    new_password: str = Form(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user: return RedirectResponse(url="/login")
+    admin_perms = json.loads(current_user.permissions)
+    if not admin_perms.get("is_superadmin"):
+        return HTMLResponse("Unauthorized", status_code=403)
+    user = session.get(User, user_id)
+    if user and new_password:
+        user.password_hash = hash_password(new_password)
+        session.add(user)
+        session.commit()
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+# ---- Superadmin: Delete project -> Recycle Bin ----
+@app.post("/admin/projects/delete")
+async def delete_project(
+    request: Request,
+    project_id: int = Form(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user: return RedirectResponse(url="/login")
+    perms = json.loads(current_user.permissions)
+    if not perms.get("is_superadmin"):
+        return HTMLResponse("Unauthorized", status_code=403)
+    project = session.get(Project, project_id)
+    if project:
+        # Save to recycle bin
+        deleted = DeletedProject(
+            project_id=project.id,
+            name=project.name,
+            deleted_by=current_user.name,
+            deleted_at=date.today(),
+            data_json=json.dumps({
+                "name": project.name, "sprint": project.sprint,
+                "dev_team": project.dev_team, "qa_team": project.qa_team,
+                "product_owner": project.product_owner, "dev_poc": project.dev_poc,
+                "qa_poc": project.qa_poc, "release_date": str(project.release_date)
+            })
+        )
+        session.add(deleted)
+        session.delete(project)
+        
+        # Also delete all associated reviews for this project
+        reviews_to_delete = session.exec(select(Review).where(Review.project_id == project.id)).all()
+        for r in reviews_to_delete:
+            session.delete(r)
+            
+        session.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+# ---- Superadmin: Recycle Bin view ----
+@app.get("/admin/recycle-bin", response_class=HTMLResponse)
+async def recycle_bin(
+    request: Request,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user: return RedirectResponse(url="/login")
+    perms = json.loads(current_user.permissions)
+    if not perms.get("is_superadmin"):
+        return HTMLResponse("Unauthorized", status_code=403)
+    deleted_projects = session.exec(select(DeletedProject).order_by(DeletedProject.deleted_at.desc())).all()
+    return templates.TemplateResponse(request=request, name="recycle_bin.html", context={
+        "request": request,
+        "deleted_projects": deleted_projects,
+        "current_user": current_user
+    })
 
 if __name__ == "__main__":
     import uvicorn

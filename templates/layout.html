@@ -4,38 +4,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title | default('360° Review') }}</title>
+    <title>{{ title | default('QuickReply.ai | 360° Reviews') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .qr-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .qr-brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #00d4a0, #0891b2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(0,212,160,0.25);
+            flex-shrink: 0;
+        }
+        .qr-brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, #00d4a0, #0891b2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+        .qr-brand-sub {
+            font-size: 0.62rem;
+            opacity: 0.5;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+            -webkit-text-fill-color: rgba(255,255,255,0.5);
+        }
+        /* Profile dropdown */
+        .profile-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 6px 14px 6px 6px;
+            transition: all 0.2s;
+        }
+        .profile-trigger:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .profile-name { font-size: 0.82rem; font-weight: 600; color: #fff; }
+        .profile-role { font-size: 0.65rem; color: var(--text-muted, #64748b); }
+
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: #111827;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 1.2rem;
+            width: 320px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: dropDown 0.2s ease;
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .profile-dropdown.open { display: block; }
+
+        .profile-dropdown h4 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.8rem; }
+        .profile-info-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+        .profile-info-row:last-of-type { border-bottom: none; }
+        .profile-info-label { color: #64748b; min-width: 40px; font-size: 0.78rem; }
+
+        .pwd-form input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            color: #fff;
+            font-size: 0.85rem;
+            margin-bottom: 0.6rem;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .pwd-form input:focus { border-color: var(--primary, #6366f1); }
+        .pwd-form button {
+            width: 100%;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem;
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: opacity 0.2s;
+        }
+        .pwd-form button:hover { opacity: 0.85; }
+
+        .logout-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            color: #ef4444;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 0.4rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .logout-link:hover { background: rgba(239,68,68,0.1); }
+
+        .recycle-nav { color: #f97316 !important; }
+    </style>
 </head>
 
 <body>
     <div class="container">
-        <header style="margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-family: 'Outfit', sans-serif; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px;">
-                <span style="color: var(--primary);">360°</span> REVIEWS
+        <header style="margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: center; position: relative;">
+            <!-- Brand -->
+            <a href="/" class="qr-brand">
+                <div class="qr-brand-icon">💬</div>
+                <div>
+                    <div class="qr-brand-name">QuickReply.ai</div>
+                    <div class="qr-brand-sub">360° Reviews</div>
+                </div>
+            </a>
+
+            <!-- Nav + Profile -->
+            <div style="display: flex; align-items: center; gap: 1.5rem; position: relative;">
+                <nav class="sidebar-nav" style="margin: 0;">
+                    {% set perms = request.session.get('permissions', {}) %}
+                    {% set tabs = perms.get('tabs', []) %}
+
+                    {% if 'home' in tabs %}<a href="/" id="nav-home">Home</a>{% endif %}
+                    {% if 'setup' in tabs %}<a href="/setup" id="nav-setup">Setup</a>{% endif %}
+                    {% if 'review' in tabs %}<a href="/review" id="nav-review">Review</a>{% endif %}
+                    {% if 'dashboard' in tabs %}<a href="/dashboard" id="nav-dash" class="btn-dashboard">Dashboard</a>{% endif %}
+
+                    {% if perms.get('is_superadmin') %}
+                    <a href="/admin/users" id="nav-admin" style="color: var(--accent); font-weight: 700;">User Access</a>
+                    <a href="/admin/recycle-bin" id="nav-recycle" class="recycle-nav" style="font-weight: 700;">🗑️ Recycle Bin</a>
+                    {% endif %}
+                </nav>
+
+                <!-- Profile Widget -->
+                {% set session_user_name = request.session.get('user_name', '') %}
+                {% set session_user_role = request.session.get('user_role', '') %}
+                <div style="position: relative;" id="profile-widget">
+                    <div class="profile-trigger" onclick="toggleProfile()">
+                        <div class="profile-avatar">{{ session_user_name[:2].upper() if session_user_name else '??' }}</div>
+                        <div>
+                            <div class="profile-name">{{ session_user_name if session_user_name else 'Profile' }}</div>
+                            <div class="profile-role">{{ session_user_role }}</div>
+                        </div>
+                        <span style="font-size: 0.6rem; opacity: 0.5; margin-left: 4px;">▼</span>
+                    </div>
+
+                    <div class="profile-dropdown" id="profile-dropdown">
+                        <h4>My Profile</h4>
+                        {% set session_email = request.session.get('user') %}
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">👤 Name</span>
+                            <span>{{ session_user_name }}</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">📧 Email</span>
+                            <span style="font-size: 0.8rem; color: #94a3b8;">{{ session_email }}</span>
+                        </div>
+                        <div class="profile-info-row" style="border-bottom: none;">
+                            <span class="profile-info-label">🎯 Role</span>
+                            <span style="background: rgba(99,102,241,0.2); color: #a5b4fc; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">{{ session_user_role }}</span>
+                        </div>
+
+                        <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 1rem 0;"></div>
+                        <h4>Reset Password</h4>
+                        <form class="pwd-form" action="/profile/reset-password" method="post" id="pwd-form">
+                            <input type="password" name="new_password" placeholder="New Password" required minlength="6" id="new_pwd">
+                            <input type="password" name="confirm_password" placeholder="Confirm New Password" required minlength="6" id="confirm_pwd">
+                            <div id="pwd-error" style="color: #f87171; font-size: 0.78rem; margin-bottom: 0.5rem; display: none;"></div>
+                            <button type="submit">🔒 Update Password</button>
+                        </form>
+
+                        <a href="/logout" class="logout-link">⏏ Sign Out</a>
+                    </div>
+                </div>
             </div>
-            <nav class="sidebar-nav">
-                {% set perms = request.session.get('permissions', {}) %}
-                {% set tabs = perms.get('tabs', []) %}
-
-                {% if 'home' in tabs %}<a href="/" id="nav-home">Home</a>{% endif %}
-                {% if 'setup' in tabs %}<a href="/setup" id="nav-setup">Setup</a>{% endif %}
-                {% if 'review' in tabs %}<a href="/review" id="nav-review">Review</a>{% endif %}
-                {% if 'dashboard' in tabs %}<a href="/dashboard" id="nav-dash" class="btn-dashboard">Dashboard</a>{%
-                endif %}
-
-                {% if perms.get('is_superadmin') %}
-                <a href="/admin/users" id="nav-admin" style="color: var(--accent); font-weight: 700;">USER ACCESS</a>
-                {% endif %}
-
-                <a href="/logout" style="color: var(--danger); margin-left: 1rem;">Logout</a>
-            </nav>
         </header>
+
+        {% if profile_success %}
+        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            ✅ {{ profile_success }}
+        </div>
+        {% endif %}
+        {% if profile_error %}
+        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            ❌ {{ profile_error }}
+        </div>
+        {% endif %}
 
         <main class="animate-fade">
             {% block content %}{% endblock %}
@@ -43,14 +235,38 @@
     </div>
 
     <script>
-        // Simple active state for nav
+        // Active nav
         const path = window.location.pathname;
         if (path === '/') document.getElementById('nav-home')?.classList.add('active');
         else if (path.includes('/setup')) document.getElementById('nav-setup')?.classList.add('active');
         else if (path.includes('/review')) document.getElementById('nav-review')?.classList.add('active');
         else if (path.includes('/dashboard')) document.getElementById('nav-dash')?.classList.add('active');
         else if (path.includes('/admin/users')) document.getElementById('nav-admin')?.classList.add('active');
+        else if (path.includes('/admin/recycle')) document.getElementById('nav-recycle')?.classList.add('active');
+
+        // Profile dropdown
+        function toggleProfile() {
+            document.getElementById('profile-dropdown').classList.toggle('open');
+        }
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('profile-widget')?.contains(e.target)) {
+                document.getElementById('profile-dropdown')?.classList.remove('open');
+            }
+        });
+
+        // Password validation
+        document.getElementById('pwd-form')?.addEventListener('submit', function(e) {
+            const np = document.getElementById('new_pwd').value;
+            const cp = document.getElementById('confirm_pwd').value;
+            const errEl = document.getElementById('pwd-error');
+            if (np !== cp) {
+                e.preventDefault();
+                errEl.textContent = 'Passwords do not match.';
+                errEl.style.display = 'block';
+            } else {
+                errEl.style.display = 'none';
+            }
+        });
     </script>
 </body>
-
 </html>

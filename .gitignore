@@ -1,1 +1,10 @@
-__pycache__/    data/
+__pycache__/
+data/
+*.pyc
+*.pyo
+.env
+service_account.json
+*.db-shm
+*.db-wal
+scratch/
+.devcontainer/
