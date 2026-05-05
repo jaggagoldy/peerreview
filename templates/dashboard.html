@@ -161,6 +161,30 @@
                     {% if project_info.tech_lead_name %} &nbsp;|&nbsp; Tech Lead: <span style="color:#a78bfa;">{{
                         project_info.tech_lead_name }}</span>{% endif %}
                 </div>
+                
+                <!-- Timeline Row -->
+                <div style="margin-top:1.2rem; display:flex; gap:2rem; flex-wrap:wrap;">
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:0.62rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Design</span>
+                        <span style="font-size:0.82rem; font-weight:600;">{{ project_info.design_date or 'N/A' }}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:0.62rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Dev Start</span>
+                        <span style="font-size:0.82rem; font-weight:600;">{{ project_info.dev_start or 'N/A' }}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:0.62rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">QA Ready</span>
+                        <span style="font-size:0.82rem; font-weight:600;">{{ project_info.qa_start or 'N/A' }}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:0.62rem; opacity:0.5; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">QA End</span>
+                        <span style="font-size:0.82rem; font-weight:600;">{{ project_info.qa_end or 'N/A' }}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:0.62rem; opacity:0.6; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; font-weight:700;">Release</span>
+                        <span style="font-size:0.82rem; font-weight:800; color:var(--accent);">{{ project_info.release_date }}</span>
+                    </div>
+                </div>
             </div>
             <div style="text-align:right;">
                 <div style="font-size:0.7rem;opacity:0.5;">SUBMISSIONS</div>
@@ -439,7 +463,11 @@
                         <div
                             style="display:flex;justify-content:space-between;font-size:0.73rem;color:var(--accent);font-weight:700;margin-bottom:4px;">
                             <span>{{ user_profile.all_projects[r.project_id] }}</span>
+                            {% if is_admin %}
                             <span style="opacity:0.6;">By {{ r.reviewer_name }}</span>
+                            {% else %}
+                            <span style="opacity:0.6;">Anonymous Feedback</span>
+                            {% endif %}
                         </div>
                         <div style="font-size:0.83rem;color:#fff;line-height:1.45;">"{{ r.remarks }}"</div>
                     </div>

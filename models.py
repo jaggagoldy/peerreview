@@ -16,17 +16,17 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     sprint: str
-    design_date: date
-    dev_start: date
-    qa_start: date
-    qa_end: date
-    release_date: date
+    design_date: Optional[date] = None
+    dev_start: Optional[date] = None
+    qa_start: Optional[date] = None
+    qa_end: Optional[date] = None
+    release_date: date # Release date remains mandatory as the project 'end'
     dev_team: str # Stored as JSON string
     qa_team: str # Stored as JSON string
     product_owner: str
     dev_poc: str
     qa_poc: str
-    tech_lead_name: str = Field(default="Niteesh Mahato") # Default for safety, but will be set in UI
+    tech_lead_name: str = Field(default="Niteesh Mahato")
 
     def get_dev_team(self) -> List[str]:
         return json.loads(self.dev_team)

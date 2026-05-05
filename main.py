@@ -336,11 +336,11 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
 async def create_project(
     name: str = Form(...),
     sprint: str = Form(...),
-    design_date: date = Form(...),
-    dev_start: date = Form(...),
-    qa_start: date = Form(...),
-    qa_end: date = Form(...),
-    release_date: date = Form(...),
+    design_date: Optional[str] = Form(None),
+    dev_start: Optional[str] = Form(None),
+    qa_start: Optional[str] = Form(None),
+    qa_end: Optional[str] = Form(None),
+    release_date: str = Form(...),
     dev_team: List[str] = Form(...),
     qa_team: List[str] = Form(...),
     product: str = Form(...),
@@ -352,14 +352,21 @@ async def create_project(
 ):
     if not current_user or not current_user.is_admin:
         return HTMLResponse("Unauthorized", status_code=403)
+    
+    # Helper to parse date or return None
+    def parse_dt(dt_str):
+        if not dt_str: return None
+        try: return date.fromisoformat(dt_str)
+        except: return None
+
     project = Project(
         name=name,
         sprint=sprint,
-        design_date=design_date,
-        dev_start=dev_start,
-        qa_start=qa_start,
-        qa_end=qa_end,
-        release_date=release_date,
+        design_date=parse_dt(design_date),
+        dev_start=parse_dt(dev_start),
+        qa_start=parse_dt(qa_start),
+        qa_end=parse_dt(qa_end),
+        release_date=date.fromisoformat(release_date),
         dev_team=json.dumps(dev_team),
         qa_team=json.dumps(qa_team),
         product_owner=product,
@@ -651,6 +658,11 @@ async def dashboard(
                 "dev_poc": p_obj.dev_poc,
                 "qa_poc": p_obj.qa_poc,
                 "tech_lead_name": getattr(p_obj, 'tech_lead_name', ''),
+                "design_date": p_obj.design_date,
+                "dev_start": p_obj.dev_start,
+                "qa_start": p_obj.qa_start,
+                "qa_end": p_obj.qa_end,
+                "release_date": p_obj.release_date,
                 "feedback_list": project_feedback
             }
 
