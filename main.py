@@ -26,11 +26,19 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return hash_password(plain_password) == hashed_password
 
-# --- EMAIL SERVICE (Simulated) ---
+import smtplib
+from email.message import EmailMessage
+
+# --- EMAIL SERVICE (Production SMTP) ---
+SMTP_HOST = "email-smtp.us-east-1.amazonaws.com" # Adjust region if needed
+SMTP_PORT = 587
+SMTP_USER = "AKIARVESOK3RUPXF2W4R"
+SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
+FROM_EMAIL = "goldy.jagga@quickreply.ai" # Ensure this is a VERIFIED sender in SES
+
 def send_review_notification_email(user: User, project: Project, reviews: List[Review]):
     """
     Sends a confirmation email to the user and CCs Hridayesh & Goldy.
-    Includes a detailed breakdown of the submitted ratings.
     """
     to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
@@ -45,7 +53,6 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
 Resource: {r.rated_person} ({r.rated_role})
 Scores: M1: {r.score_1} | M2: {r.score_2} | M3: {r.score_3}
 {"POC Score: " + str(r.score_poc) if r.score_poc else ""}
-{"Tech Lead Score: " + str(r.score_tech_lead) if r.score_tech_lead else ""}
 Remarks: {r.remarks if r.remarks else "N/A"}
 """
 
@@ -66,18 +73,21 @@ Delay Reason (if any):
 This is an automated notification. CC: {', '.join(cc_emails)}
 """
     
-    print("="*60)
-    print(f"📧 SENDING EMAIL...")
-    print(f"Subject: {subject}")
-    print(f"To: {to_email}")
-    print(f"CC: {', '.join(cc_emails)}")
-    print(f"Body:\n{email_body}")
-    print("="*60)
-    
-    # In a real production environment, you would use smtplib here:
-    # with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT) as server:
-    #     server.login(Config.SMTP_USER, Config.SMTP_PASS)
-    #     server.send_message(msg)
+    msg = EmailMessage()
+    msg.set_content(email_body)
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to_email
+    msg["Cc"] = ", ".join(cc_emails)
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        print(f"✅ Email sent successfully to {to_email}")
+    except Exception as e:
+        print(f"❌ Failed to send email: {e}")
 
 # Master Data
 DEV_TEAM_LIST = ["Yash Mangal", "Abhishek", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
