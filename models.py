@@ -67,6 +67,11 @@ class DeletedProject(SQLModel, table=True):
     data_json: str # Store full project data as JSON for recovery
 
 sqlite_file_name = "data/database.db"
+
+# Ensure the data directory exists before the engine tries to open the file
+import os
+os.makedirs(os.path.dirname(sqlite_file_name), exist_ok=True)
+
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
 engine = create_engine(sqlite_url, echo=True)
