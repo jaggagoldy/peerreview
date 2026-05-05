@@ -115,46 +115,21 @@ def on_startup():
         for u_data in USER_EMAILS:
             existing = session.exec(select(User).where(User.email == u_data["email"])).first()
             
-            # Roles & Permissions Mapping
             role = u_data["role"]
             is_admin = u_data["admin"]
             
+            # Default tabs
             if role in ["Dev", "QA", "Product"]:
-                tabs = ["home", "review", "dashboard"] # Everyone sees dashboard for their own stats
+                tabs = ["home", "review", "dashboard"]
             else:
                 tabs = ["home", "review", "dashboard", "setup"]
             
             perms = {"tabs": tabs}
-            
-            # Superadmin Access
             if u_data["email"] == "goldy.jagga@quickreply.ai":
                 perms["is_superadmin"] = True
                 if "admin" not in perms["tabs"]: perms["tabs"].append("admin")
 
-            if not existing:
-                user = User(
-                    email=u_data["email"],
-                    name=u_data["name"],
-                    role=u_data["role"],
-                    is_admin=is_admin,
-                    password_hash=hash_password("quickreply123"),
-                    permissions=json.dumps(perms)
-                )
-                session.add(user)
-            else:
-                # Update permissions/role if they've changed in code
-                existing.role = u_data["role"]
-                existing.is_admin = is_admin
-                existing.permissions = json.dumps(perms)
-                session.add(existing)
-        
-        session.commit()
-
-            # Password Logic:
-            # Management: quickreply123
-            # Dev: Dev@123
-            # QA: Qa@123
-            # PO: Product@123
+            # Password Logic based on role
             default_pass = "quickreply123"
             if role == "Dev": default_pass = "Dev@123"
             elif role == "QA": default_pass = "Qa@123"
@@ -171,11 +146,12 @@ def on_startup():
                 )
                 session.add(user)
             else:
-                # Update role and admin status if they changed
+                # Update existing user info
                 existing.role = role
                 existing.is_admin = is_admin
-                existing.permissions = json.dumps(perms) # Update permissions for production
+                existing.permissions = json.dumps(perms)
                 session.add(existing)
+        
         session.commit()
 
     # Start nightly backup scheduler in background thread
