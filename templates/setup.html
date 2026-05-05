@@ -63,14 +63,26 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <label>Product Owner</label>
-            <select name="product" required>
-                <option value="">Select...</option>
-                {% for p in product_list %}
-                <option value="{{ p }}">{{ p }}</option>
-                {% endfor %}
-            </select>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group">
+                <label>Product Owner</label>
+                <select name="product" required>
+                    <option value="">Select...</option>
+                    {% for p in product_list %}
+                    <option value="{{ p }}">{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tech Lead</label>
+                <select name="tech_lead_name" required>
+                    <option value="">Select...</option>
+                    {% for tl in tech_lead_list %}
+                    <option value="{{ tl }}">{{ tl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">

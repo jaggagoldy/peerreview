@@ -458,57 +458,64 @@
     {% endif %}
 
 
-    <!-- =================== LEADERBOARD TABLE (admin, no role filter, or multi-user) =================== -->
-    {% if is_admin and (not filters.role or filters.user_name|length > 1 or (filters.user_name|length == 1 and
-    user_profile)) %}
+    <!-- =================== LEADERBOARD CARDS (admin, no role filter, or multi-user) =================== -->
+    {% if is_admin and (not filters.role or filters.user_name|length > 1 or (filters.user_name|length == 1 and user_profile)) %}
     {% if not filters.role or filters.user_name %}
-    <h2 style="margin-top:0;margin-bottom:1.2rem;">Detailed Rankings</h2>
-    <div class="glass-card" style="padding:0;overflow:hidden;">
-        {% if leaderboard %}
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr
-                        style="text-align:left;border-bottom:1px solid var(--glass-border);opacity:0.65;font-size:0.77rem;background:rgba(255,255,255,0.02);">
-                        <th style="padding:1.2rem 1.5rem;">Resource</th>
-                        <th style="padding:1.2rem 1.5rem;">Role</th>
-                        <th style="padding:1.2rem 1.5rem;">M1 Avg</th>
-                        <th style="padding:1.2rem 1.5rem;">M2 Avg</th>
-                        <th style="padding:1.2rem 1.5rem;">M3 Avg</th>
-                        <th style="padding:1.2rem 1.5rem;">POCs</th>
-                        <th style="padding:1.2rem 1.5rem;">Overall</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in leaderboard %}
-                    <tr class="stats-card-row" style="border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;"
-                        onclick="window.location.href='/dashboard?user_name={{ entry.name }}'">
-                        <td style="padding:1.2rem 1.5rem;font-weight:700;color:#fff;">{{ entry.name }}</td>
-                        <td style="padding:1.2rem 1.5rem;">
-                            <span
-                                style="font-size:0.72rem;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;">{{
-                                entry.role }}</span>
-                        </td>
-                        <td style="padding:1.2rem 1.5rem;">{{ entry.s1 }}</td>
-                        <td style="padding:1.2rem 1.5rem;">{{ entry.s2 }}</td>
-                        <td style="padding:1.2rem 1.5rem;">{{ entry.s3 }}</td>
-                        <td style="padding:1.2rem 1.5rem;"><span style="color:var(--accent);font-weight:700;">{{
-                                entry.poc_count }}</span></td>
-                        <td style="padding:1.2rem 1.5rem;">
-                            <span
-                                class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}">{{
-                                entry.overall }}</span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <h2 style="margin-top:0;margin-bottom:1.2rem;">Detailed Performance Rankings</h2>
+    
+    {% if leaderboard %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem;margin-bottom:3rem;">
+        {% for entry in leaderboard %}
+        {% set ec = '#6366f1' if entry.role == 'Dev' else ('#10b981' if entry.role == 'QA' else ('#a78bfa' if entry.role == 'Tech Lead' else '#f59e0b')) %}
+        <div class="person-card glass-card" style="margin-bottom:0;cursor:pointer;border-top:3px solid {{ ec }};"
+            onclick="window.location.href='/dashboard?user_name={{ entry.name }}'">
+            
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:{{ ec }}22;display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:1px solid {{ ec }}44;">
+                        {% if entry.role == 'Dev' %}👨‍💻{% elif entry.role == 'QA' %}🔍{% elif entry.role == 'Tech Lead' %}🏗️{% else %}📋{% endif %}
+                    </div>
+                    <div>
+                        <div style="font-weight:800;font-size:1.05rem;color:#fff;margin-bottom:2px;">{{ entry.name }}</div>
+                        <span style="font-size:0.65rem;background:rgba(255,255,255,0.06);color:{{ ec }};padding:2px 8px;border-radius:4px;font-weight:700;text-transform:uppercase;">{{ entry.role }}</span>
+                    </div>
+                </div>
+                <div style="text-align:center;">
+                    <div class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
+                        style="font-size:1.1rem;padding:5px 13px;">{{ entry.overall }}</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem;text-align:center;">
+                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
+                    <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M1</div>
+                    <div style="font-size:0.9rem;font-weight:700;">{{ entry.s1 }}</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
+                    <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M2</div>
+                    <div style="font-size:0.9rem;font-weight:700;">{{ entry.s2 }}</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
+                    <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M3</div>
+                    <div style="font-size:0.9rem;font-weight:700;">{{ entry.s3 }}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;">
+                <div style="color:var(--accent);font-weight:700;">
+                    {% if entry.poc_count > 0 %}⭐ {{ entry.poc_count }} POC Assignments{% endif %}
+                </div>
+                <div style="opacity:0.5;font-style:italic;">View Full Details →</div>
+            </div>
         </div>
-        {% else %}
-        <div style="padding:4rem;text-align:center;color:var(--text-muted);">No reviews found matching these filters.
-        </div>
-        {% endif %}
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="glass-card" style="padding:4rem;text-align:center;color:var(--text-muted);">
+        <div style="font-size:3rem;margin-bottom:1rem;">🔎</div>
+        <p>No reviews found matching these filters.</p>
+    </div>
+    {% endif %}
     {% endif %}
     {% endif %}
 
@@ -539,7 +546,7 @@ const userRoleMap    = {{ user_role_map | tojson }};
 const userProjectsMap = {{ user_projects_map | tojson }};
 const roleUsersMap   = {{ role_users_map | tojson }};
 const allProjectOptData = [
-    {% for p in all_projects %}{ id: {{ p.id }}, label: "{{ p.name }} ({{ p.sprint }})" },{% endfor %}
+    {% for p in all_projects %}{ id: {{ p.id }}, label: "{{ p.name }} ({{ p.sprint }})", devs: {{ p.dev_team | from_json | tojson }}, qas: {{ p.qa_team | from_json | tojson }}, po: "{{ p.product_owner }}", tl: "{{ p.tech_lead_name }}" },{% endfor %}
 ];
 
 // ------- Multi-select dropdown logic -------
@@ -571,44 +578,83 @@ function clearAllUsers() {
     updateMultiselLabel();
 }
 
-// ------- Role filter → restrict user options -------
+// ------- Advanced Sync Logic -------
 function onRoleChange(selectedRole) {
     const options = document.querySelectorAll('.ms-option');
-    const checkboxes = document.querySelectorAll('.ms-checkbox');
+    const projSel = document.getElementById('sel-project');
+    const currentProj = projSel.value;
 
+    // 1. Filter Resources by Role
     options.forEach(opt => {
         const optRole = opt.getAttribute('data-role');
         if (!selectedRole || optRole === selectedRole) {
             opt.style.display = 'flex';
         } else {
             opt.style.display = 'none';
-            // Uncheck hidden options so they don't get submitted
             opt.querySelector('.ms-checkbox').checked = false;
         }
     });
     updateMultiselLabel();
 
-    // Clear project when role changes
-    const projSel = document.getElementById('sel-project');
-    if (projSel) projSel.value = '';
+    // 2. Filter Projects by Role
+    projSel.innerHTML = '<option value="">All Projects</option>';
+    allProjectOptData.forEach(p => {
+        let hasRole = !selectedRole;
+        if (selectedRole === 'Dev' && p.devs.length > 0) hasRole = true;
+        if (selectedRole === 'QA' && p.qas.length > 0) hasRole = true;
+        if (selectedRole === 'Product' && p.po) hasRole = true;
+        if (selectedRole === 'Tech Lead' && p.tl) hasRole = true;
+
+        if (hasRole) {
+            const opt = document.createElement('option');
+            opt.value = p.id; opt.textContent = p.label;
+            if (currentProj == p.id) opt.selected = true;
+            projSel.appendChild(opt);
+        }
+    });
 }
 
-// ------- User checkbox change → auto-set role + filter projects -------
+function onProjectChange(pid) {
+    if (!pid) return;
+    const project = allProjectOptData.find(p => p.id == pid);
+    if (!project) return;
+
+    const projectMembers = [...project.devs, ...project.qas, project.po, project.tl].filter(Boolean);
+    const options = document.querySelectorAll('.ms-option');
+
+    // Filter Resources by Project Membership
+    options.forEach(opt => {
+        const name = opt.querySelector('.ms-checkbox').value;
+        if (projectMembers.includes(name)) {
+            opt.style.display = 'flex';
+        } else {
+            opt.style.display = 'none';
+            opt.querySelector('.ms-checkbox').checked = false;
+        }
+    });
+    updateMultiselLabel();
+}
+
+// Attach listeners
+document.getElementById('sel-project')?.addEventListener('change', (e) => onProjectChange(e.target.value));
+
 document.querySelectorAll('.ms-checkbox').forEach(cb => {
     cb.addEventListener('change', () => {
         const checked = Array.from(document.querySelectorAll('.ms-checkbox:checked')).map(c => c.value);
         if (checked.length === 1) {
             const name = checked[0];
             const role = userRoleMap[name];
-            // Auto-set role dropdown
+            
+            // Auto-set role
             const roleSel = document.getElementById('sel-role');
             if (roleSel && role) {
                 roleSel.value = role;
+                const currentProj = document.getElementById('sel-project').value;
                 onRoleChange(role);
-                // Re-check the checkbox (onRoleChange might have hidden it briefly)
-                cb.checked = true;
+                document.getElementById('sel-project').value = currentProj;
             }
-            // Filter project dropdown to only user's projects
+
+            // Filter projects to only this user's projects
             const userPids = userProjectsMap[name] || [];
             const projSel = document.getElementById('sel-project');
             if (projSel) {
@@ -617,24 +663,10 @@ document.querySelectorAll('.ms-checkbox').forEach(cb => {
                 allProjectOptData.forEach(p => {
                     if (userPids.includes(p.id)) {
                         const opt = document.createElement('option');
-                        opt.value = p.id;
-                        opt.textContent = p.label;
-                        if (parseInt(currentVal) === p.id) opt.selected = true;
+                        opt.value = p.id; opt.textContent = p.label;
+                        if (currentVal == p.id) opt.selected = true;
                         projSel.appendChild(opt);
                     }
-                });
-            }
-        } else if (checked.length === 0) {
-            // Reset role and project
-            const roleSel = document.getElementById('sel-role');
-            if (roleSel) { roleSel.value = ''; onRoleChange(''); }
-            const projSel = document.getElementById('sel-project');
-            if (projSel) {
-                projSel.innerHTML = '<option value="">All Projects</option>';
-                allProjectOptData.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id; opt.textContent = p.label;
-                    projSel.appendChild(opt);
                 });
             }
         }
@@ -642,10 +674,11 @@ document.querySelectorAll('.ms-checkbox').forEach(cb => {
     });
 });
 
-// On page load: apply role filter to user list if role is pre-selected
 (function init() {
     const roleSel = document.getElementById('sel-role');
     if (roleSel && roleSel.value) onRoleChange(roleSel.value);
+    const projSel = document.getElementById('sel-project');
+    if (projSel && projSel.value && !roleSel.value) onProjectChange(projSel.value);
     updateMultiselLabel();
 })();
 

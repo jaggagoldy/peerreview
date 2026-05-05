@@ -22,10 +22,64 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return hash_password(plain_password) == hashed_password
 
+# --- EMAIL SERVICE (Simulated) ---
+def send_review_notification_email(user: User, project: Project, reviews: List[Review]):
+    """
+    Sends a confirmation email to the user and CCs Hridayesh & Goldy.
+    Includes a detailed breakdown of the submitted ratings.
+    """
+    to_email = user.email
+    cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+    
+    subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
+    
+    # Constructing the breakdown
+    breakdown_text = ""
+    for r in reviews:
+        breakdown_text += f"""
+---
+Resource: {r.rated_person} ({r.rated_role})
+Scores: M1: {r.score_1} | M2: {r.score_2} | M3: {r.score_3}
+{"POC Score: " + str(r.score_poc) if r.score_poc else ""}
+{"Tech Lead Score: " + str(r.score_tech_lead) if r.score_tech_lead else ""}
+Remarks: {r.remarks if r.remarks else "N/A"}
+"""
+
+    email_body = f"""
+Hello {user.name},
+
+You have successfully submitted performance reviews for the project '{project.name}'.
+
+Details of your submission:
+{breakdown_text}
+
+Project Improvement Feedback:
+{reviews[0].improvement_feedback if reviews else "N/A"}
+
+Delay Reason (if any):
+{reviews[0].delay_reason if reviews else "N/A"}
+
+This is an automated notification. CC: {', '.join(cc_emails)}
+"""
+    
+    print("="*60)
+    print(f"📧 SENDING EMAIL...")
+    print(f"Subject: {subject}")
+    print(f"To: {to_email}")
+    print(f"CC: {', '.join(cc_emails)}")
+    print(f"Body:\n{email_body}")
+    print("="*60)
+    
+    # In a real production environment, you would use smtplib here:
+    # with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT) as server:
+    #     server.login(Config.SMTP_USER, Config.SMTP_PASS)
+    #     server.send_message(msg)
+
 # Master Data
 DEV_TEAM_LIST = ["Yash Mangal", "Abhishek", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Prateek Sharma"]
+TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
 
 USER_EMAILS = [
     {"email": "himanshu.gupta@quickreply.ai", "name": "Himanshu Gupta", "role": "CEO", "admin": True},
@@ -189,7 +243,8 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
         "projects": projects,
         "dev_list": DEV_TEAM_LIST,
         "qa_list": QA_TEAM_LIST,
-        "product_list": PRODUCT_LIST
+        "product_list": PRODUCT_LIST,
+        "tech_lead_list": TECH_LEAD_LIST
     })
 
 @app.post("/setup")
@@ -306,24 +361,33 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
 async def submit_reviews(
     request: Request,
     project_id: int = Form(...),
-    reviewer_name: str = Form(...),
-    reviewer_role: str = Form(...),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     if not current_user: return RedirectResponse(url="/login")
-    form_data = await request.form()
+    
     project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # SECURITY CHECK: Is user part of this project?
+    devs = json.loads(project.dev_team)
+    qas = json.loads(project.qa_team)
+    all_members = devs + qas + [project.product_owner, getattr(project, 'tech_lead_name', '')]
     
-    # Process multiple ratings from form
-    # The form will send fields like:
-    # rating[person_name][score_1]
-    # rating[person_name][score_2]
-    # rating[person_name][score_3]
-    # rating[person_name][score_poc]
-    # remarks
-    # delay_reason
-    
+    if current_user.name not in all_members and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="You are not authorized to review this project.")
+
+    # Prevent Duplicate Submission
+    existing = session.exec(select(Review).where(Review.project_id == project_id, Review.reviewer_name == current_user.name)).first()
+    if existing:
+        return templates.TemplateResponse(request=request, name="review.html", context={
+            "error": "You have already submitted reviews for this project.",
+            "project": project,
+            "user": current_user
+        })
+
+    form_data = await request.form()
     ratings_raw = {}
     for key, value in form_data.items():
         if key.startswith("rating[") and "]" in key:
@@ -334,21 +398,24 @@ async def submit_reviews(
                 ratings_raw[name] = {}
             ratings_raw[name][field] = value
 
-    devs = json.loads(project.dev_team)
-    qas = json.loads(project.qa_team)
     improvement = form_data.get("improvement_feedback", "")
     
+    submitted_reviews_summary = []
+
     for person_name, scores in ratings_raw.items():
+        # Validate rated person is in project
         role = ""
         if person_name in devs: role = "Dev"
         elif person_name in qas: role = "QA"
         elif person_name == project.product_owner: role = "Product"
         elif person_name == project.tech_lead_name: role = "Tech Lead"
         
+        if not role: continue # Security: Don't allow rating random people
+        
         review = Review(
             project_id=project_id,
-            reviewer_name=reviewer_name,
-            reviewer_role=reviewer_role,
+            reviewer_name=current_user.name, # Enforce identity
+            reviewer_role=current_user.role,
             rated_person=person_name,
             rated_role=role,
             score_1=int(scores.get("score_1", 0)),
@@ -356,13 +423,21 @@ async def submit_reviews(
             score_3=int(scores.get("score_3", 0)),
             score_poc=int(scores.get("score_poc")) if scores.get("score_poc") else None,
             score_tech_lead=int(scores.get("score_tech_lead")) if scores.get("score_tech_lead") else None,
-            remarks=scores.get("remark", ""), # Per-person remark
+            remarks=scores.get("remark", ""),
             improvement_feedback=improvement,
             delay_reason=form_data.get("delay_reason", "")
         )
         session.add(review)
+        submitted_reviews_summary.append(review)
     
     session.commit()
+
+    # --- EMAIL NOTIFICATION LOGIC ---
+    try:
+        send_review_notification_email(current_user, project, submitted_reviews_summary)
+    except Exception as e:
+        print(f"Email failed: {e}")
+
     return RedirectResponse(url="/dashboard", status_code=303)
 
 @app.get("/dashboard", response_class=HTMLResponse)
