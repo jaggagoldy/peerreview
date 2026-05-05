@@ -34,7 +34,7 @@ SMTP_HOST = "email-smtp.us-east-1.amazonaws.com" # Adjust region if needed
 SMTP_PORT = 587
 SMTP_USER = "AKIARVESOK3RUPXF2W4R"
 SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
-FROM_EMAIL = "goldy.jagga@quickreply.ai" # Ensure this is a VERIFIED sender in SES
+FROM_EMAIL = "dev.peerreview@intelliticks.com" # Updated sender address
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review]):
     """
