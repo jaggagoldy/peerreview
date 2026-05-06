@@ -127,21 +127,34 @@ select:focus {
 
 .sidebar-nav {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
 }
 
 .sidebar-nav a {
     color: var(--text-muted);
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 12px;
     transition: all 0.2s;
+    font-size: 0.88rem;
+    font-weight: 600;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sidebar-nav a:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
 }
 
 .sidebar-nav a.active {
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--primary);
+    background: rgba(99, 102, 241, 0.12);
+    color: #a5b4fc;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
 .rating-grid {

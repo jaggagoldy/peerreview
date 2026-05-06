@@ -159,8 +159,8 @@
             </a>
 
             <!-- Nav + Profile -->
-            <div style="display: flex; align-items: center; gap: 1.5rem; position: relative;">
-                <nav class="sidebar-nav" style="margin: 0;">
+            <div style="display: flex; align-items: center; gap: 1rem; position: relative;">
+                <nav class="sidebar-nav">
                     {% set perms = request.session.get('permissions', {}) %}
                     {% set tabs = perms.get('tabs', []) %}
 
@@ -170,19 +170,19 @@
                     {% if 'dashboard' in tabs %}<a href="/dashboard" id="nav-dash" class="btn-dashboard">Dashboard</a>{% endif %}
 
                     {% if perms.get('is_superadmin') %}
-                    <a href="/admin/users" id="nav-admin" style="color: var(--accent); font-weight: 700;">User Access</a>
-                    <a href="/admin/recycle-bin" id="nav-recycle" class="recycle-nav" style="font-weight: 700;">🗑️ Recycle Bin</a>
+                    <a href="/admin/users" id="nav-admin" style="color: var(--accent);">User Access</a>
+                    <a href="/admin/recycle-bin" id="nav-recycle" class="recycle-nav">🗑️ Recycle Bin</a>
                     {% endif %}
                 </nav>
 
                 <!-- Notifications Widget -->
                 <div style="position: relative;" id="notif-widget">
-                    <div class="notif-trigger" onclick="toggleNotifs()" style="cursor: pointer; position: relative; width: 38px; height: 38px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                        <span style="font-size: 1.2rem;">🔔</span>
-                        <div id="notif-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; border: 2px solid #111827; align-items: center; justify-content: center;">0</div>
+                    <div class="notif-trigger" onclick="toggleNotifs()" style="cursor: pointer; position: relative; width: 40px; height: 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <span style="font-size: 1.1rem;">🔔</span>
+                        <div id="notif-badge" style="display: none; position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; border: 2px solid #111827; align-items: center; justify-content: center;">0</div>
                     </div>
 
-                    <div class="notif-dropdown" id="notif-dropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.2rem; width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); z-index: 1000;">
+                    <div class="notif-dropdown" id="notif-dropdown" style="display: none; position: absolute; top: calc(100% + 15px); right: 0; background: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.2rem; width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); z-index: 1000;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <h4 style="margin: 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Notifications</h4>
                             <button onclick="markAllRead()" style="background: none; border: none; color: var(--primary); font-size: 0.75rem; cursor: pointer; font-weight: 600;">Mark all as read</button>
@@ -197,13 +197,12 @@
                 {% set session_user_name = request.session.get('user_name', '') %}
                 {% set session_user_role = request.session.get('user_role', '') %}
                 <div style="position: relative;" id="profile-widget">
-                    <div class="profile-trigger" onclick="toggleProfile()">
-                        <div class="profile-avatar">{{ session_user_name[:2].upper() if session_user_name else '??' }}</div>
-                        <div>
-                            <div class="profile-name">{{ session_user_name if session_user_name else 'Profile' }}</div>
-                            <div class="profile-role">{{ session_user_role }}</div>
+                    <div class="profile-trigger" onclick="toggleProfile()" style="height: 40px; padding: 4px 12px 4px 4px; border-radius: 12px;">
+                        <div class="profile-avatar" style="width: 30px; height: 30px; font-size: 0.75rem;">{{ session_user_name[:2].upper() if session_user_name else '??' }}</div>
+                        <div style="line-height: 1.1;">
+                            <div class="profile-name" style="font-size: 0.82rem;">{{ session_user_name if session_user_name else 'Profile' }}</div>
+                            <div class="profile-role" style="font-size: 0.65rem; opacity: 0.6;">{{ session_user_role }}</div>
                         </div>
-                        <span style="font-size: 0.6rem; opacity: 0.5; margin-left: 4px;">▼</span>
                     </div>
 
                     <div class="profile-dropdown" id="profile-dropdown">
