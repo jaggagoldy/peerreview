@@ -135,7 +135,8 @@ select:focus {
 .sidebar-nav a {
     color: var(--text-muted);
     text-decoration: none;
-    padding: 0.6rem 1.2rem;
+    height: 40px; /* Synchronized with logo and profile height */
+    padding: 0 1.2rem;
     border-radius: 12px;
     transition: all 0.2s;
     font-size: 0.88rem;
@@ -143,6 +144,7 @@ select:focus {
     white-space: nowrap;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
 }
 
