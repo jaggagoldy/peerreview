@@ -1,3 +1,4 @@
+import os
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from typing import List, Optional
 from datetime import date
