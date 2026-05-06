@@ -614,57 +614,94 @@ user_profile)) %}
 <h2 style="margin-top:0;margin-bottom:1.2rem;">Detailed Performance Rankings</h2>
 
 {% if leaderboard %}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem;margin-bottom:3rem;">
-    {% for entry in leaderboard %}
-    {% set ec = '#6366f1' if entry.role == 'Dev' else ('#10b981' if entry.role == 'QA' else ('#a78bfa' if entry.role ==
-    'Tech Lead' else '#f59e0b')) %}
-    <div class="person-card glass-card" style="margin-bottom:0;cursor:pointer;border-top:3px solid {{ ec }};"
-        onclick="window.location.href='/dashboard?user_name={{ entry.name }}'">
-
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
-            <div style="display:flex;gap:12px;align-items:center;">
-                <div
-                    style="width:40px;height:40px;border-radius:10px;background:{{ ec }}22;display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:1px solid {{ ec }}44;">
-                    {% if entry.role == 'Dev' %}👨‍💻{% elif entry.role == 'QA' %}🔍{% elif entry.role == 'Tech Lead'
-                    %}🏗️{% else %}📋{% endif %}
-                </div>
-                <div>
-                    <div style="font-weight:800;font-size:1.05rem;color:#fff;margin-bottom:2px;">{{ entry.name }}</div>
-                    <span
-                        style="font-size:0.65rem;background:rgba(255,255,255,0.06);color:{{ ec }};padding:2px 8px;border-radius:4px;font-weight:700;text-transform:uppercase;">{{
-                        entry.role }}</span>
-                </div>
-            </div>
-            <div style="text-align:center;">
-                <div class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
-                    style="font-size:1.1rem;padding:5px 13px;">{{ entry.overall }}</div>
-            </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem;text-align:center;">
-            <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
-                <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M1</div>
-                <div style="font-size:0.9rem;font-weight:700;">{{ entry.s1 }}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
-                <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M2</div>
-                <div style="font-size:0.9rem;font-weight:700;">{{ entry.s2 }}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;">
-                <div style="font-size:0.55rem;opacity:0.5;text-transform:uppercase;margin-bottom:4px;">M3</div>
-                <div style="font-size:0.9rem;font-weight:700;">{{ entry.s3 }}</div>
-            </div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;">
-            <div style="color:var(--accent);font-weight:700;">
-                {% if entry.poc_count > 0 %}⭐ {{ entry.poc_count }} POC Assignments{% endif %}
-            </div>
-            <div style="opacity:0.5;font-style:italic;">View Full Details →</div>
+<div class="glass-card" style="padding:0;overflow:hidden;margin-bottom:3rem;border:1px solid var(--glass-border);">
+    <div style="padding:1.2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.05);">
+        <h3 style="margin:0;font-size:1.1rem;color:#fff;">Detailed Performance Rankings</h3>
+        <div style="display:flex;gap:10px;">
+            <input type="text" id="rankingsSearch" onkeyup="filterRankingsTable()" placeholder="🔍 Search name..." 
+                   style="background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);color:#fff;padding:7px 14px;border-radius:8px;font-size:0.8rem;width:200px;">
+            <select id="rankingsRoleFilter" onchange="filterRankingsTable()" 
+                    style="background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);color:#fff;padding:7px 14px;border-radius:8px;font-size:0.8rem;">
+                <option value="">All Roles</option>
+                <option value="Dev">Dev</option>
+                <option value="QA">QA</option>
+                <option value="Tech Lead">Tech Lead</option>
+                <option value="Product">Product</option>
+            </select>
         </div>
     </div>
-    {% endfor %}
+    
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;" id="rankingsTable">
+            <thead>
+                <tr style="text-align:left;background:rgba(255,255,255,0.01);opacity:0.6;font-weight:600;">
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);">Employee</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);">Role</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">Overall Score</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">M1</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">M2</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">M3</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">POC Stars</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in leaderboard %}
+                {% set ec = '#6366f1' if entry.role == 'Dev' else ('#10b981' if entry.role == 'QA' else ('#a78bfa' if entry.role == 'Tech Lead' else '#f59e0b')) %}
+                <tr class="ranking-row" data-name="{{ entry.name|lower }}" data-role="{{ entry.role }}" style="border-bottom:1px solid rgba(255,255,255,0.03);transition:background 0.2s;">
+                    <td style="padding:1rem 1.5rem;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:30px;height:30px;border-radius:6px;background:{{ ec }}22;display:flex;align-items:center;justify-content:center;font-size:0.9rem;border:1px solid {{ ec }}33;">
+                                {% if entry.role == 'Dev' %}👨‍💻{% elif entry.role == 'QA' %}🔍{% elif entry.role == 'Tech Lead' %}🏗️{% else %}📋{% endif %}
+                            </div>
+                            <span style="font-weight:600;color:#fff;">{{ entry.name }}</span>
+                        </div>
+                    </td>
+                    <td style="padding:1rem 1.5rem;">
+                        <span style="font-size:0.65rem;background:rgba(255,255,255,0.06);color:{{ ec }};padding:3px 10px;border-radius:4px;font-weight:800;text-transform:uppercase;">{{ entry.role }}</span>
+                    </td>
+                    <td style="padding:1rem 1.5rem;text-align:center;">
+                        <span class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}" style="font-size:0.9rem;padding:3px 12px;font-weight:800;">
+                            {{ entry.overall }}
+                        </span>
+                    </td>
+                    <td style="padding:1rem 1.5rem;text-align:center;font-weight:700;color:rgba(255,255,255,0.8);">{{ entry.s1 }}</td>
+                    <td style="padding:1rem 1.5rem;text-align:center;font-weight:700;color:rgba(255,255,255,0.8);">{{ entry.s2 }}</td>
+                    <td style="padding:1rem 1.5rem;text-align:center;font-weight:700;color:rgba(255,255,255,0.8);">{{ entry.s3 }}</td>
+                    <td style="padding:1rem 1.5rem;text-align:center;font-weight:700;color:var(--accent);">
+                        {% if entry.poc_count > 0 %}⭐ {{ entry.poc_count }}{% else %}-{% endif %}
+                    </td>
+                    <td style="padding:1rem 1.5rem;text-align:right;">
+                        <button onclick="window.location.href='/dashboard?user_name={{ entry.name }}'" 
+                                style="background:none;border:none;color:var(--primary);cursor:pointer;font-weight:600;font-size:0.8rem;padding:5px 10px;border-radius:6px;transition:all 0.2s;"
+                                onmouseover="this.style.background='rgba(99,102,241,0.1)'"
+                                onmouseout="this.style.background='none'">
+                            Full Details →
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<script>
+function filterRankingsTable() {
+    const search = document.getElementById('rankingsSearch').value.toLowerCase();
+    const role = document.getElementById('rankingsRoleFilter').value;
+    const rows = document.querySelectorAll('.ranking-row');
+    
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name');
+        const rowRole = row.getAttribute('data-role');
+        const matchesSearch = name.includes(search);
+        const matchesRole = role === "" || rowRole === role;
+        
+        row.style.display = (matchesSearch && matchesRole) ? '' : 'none';
+    });
+}
+</script>
 {% else %}
 <div class="glass-card" style="padding:4rem;text-align:center;color:var(--text-muted);">
     <div style="font-size:3rem;margin-bottom:1rem;">🔎</div>

@@ -70,9 +70,9 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
             <div class="form-group">
-                <label>Product Owner</label>
-                <select name="product" required>
-                    <option value="">Select...</option>
+                <label>Product Owner (Optional)</label>
+                <select name="product">
+                    <option value="">None / N/A</option>
                     {% for p in product_list %}
                     <option value="{{ p }}">{{ p }}</option>
                     {% endfor %}
@@ -103,9 +103,19 @@
                     <option value="">Select from team...</option>
                 </select>
             </div>
-            <div style="margin-top: 2rem; text-align: right;">
-                <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem;">Initialize Project</button>
-            </div>
+        </div>
+
+        <div class="form-group" style="max-width: 300px;">
+            <label>Delivery Status</label>
+            <select name="delivery_status">
+                <option value="On Time">On Time</option>
+                <option value="Delayed">Delayed</option>
+            </select>
+        </div>
+
+        <div style="margin-top: 2rem; text-align: right;">
+            <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem;">Initialize Project</button>
+        </div>
     </form>
 </div>
 
@@ -116,7 +126,12 @@
         <div
             style="padding: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h3 style="margin-bottom: 0px; font-size: 1.1rem;">{{ p.name }}</h3>
+                <h3 style="margin-bottom: 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                    {{ p.name }}
+                    <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: {{ 'rgba(34,197,94,0.2)' if p.delivery_status == 'On Time' else 'rgba(239,68,68,0.2)' }}; color: {{ '#4ade80' if p.delivery_status == 'On Time' else '#f87171' }}; border: 1px solid currentColor;">
+                        {{ p.delivery_status }}
+                    </span>
+                </h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Release:
                     {{ p.release_date }}</p>
             </div>
@@ -150,6 +165,11 @@
             if (v === currentValue) opt.selected = true;
             selectEl.appendChild(opt);
         });
+        
+        // Smart POC: Auto-select if only one person
+        if (selected.length === 1) {
+            selectEl.value = selected[0];
+        }
     }
 
     devCheckboxes.forEach(cb => cb.addEventListener('change', () => updatePocOptions(devCheckboxes, devPocSelect)));

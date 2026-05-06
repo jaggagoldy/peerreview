@@ -67,6 +67,15 @@ class DeletedProject(SQLModel, table=True):
     deleted_at: date = Field(default_factory=date.today)
     data_json: str # Store full project data as JSON for recovery
 
+class Notification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    title: str
+    message: str
+    link: Optional[str] = None
+    is_read: bool = Field(default=False)
+    created_at: date = Field(default_factory=date.today)
+
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/database.db")
 

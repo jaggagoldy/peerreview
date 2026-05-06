@@ -152,6 +152,7 @@
                                 <option value="5">5</option>
                                 <option value="4">4</option>
                                 <option value="3">3</option>
+                                <option value="2">2</option>
                                 <option value="1">1</option>
                             </select>
                             {% else %}
@@ -171,11 +172,19 @@
 
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 4rem;">
-            <div class="form-group">
-                <label style="color: var(--accent); font-weight: bold;">Delay Reason (if any)</label>
-                <input type="text" name="delay_reason" placeholder="e.g. Dependencies on other team, API failures..."
-                    style="background: rgba(255,0,0,0.03); border-color: rgba(239, 68, 68, 0.2);">
+            {% if selected_project.delivery_status == 'Delayed' and (current_user.name == selected_project.dev_poc or current_user.name == selected_project.qa_poc or current_user.role == 'Tech Lead') %}
+            <div class="form-group" style="grid-column: span 2;">
+                <label style="color: #f87171; font-weight: 800;">Reason for Project Delay (Mandatory)</label>
+                <textarea name="delay_reason" placeholder="Please provide a detailed reason for the project delay as you are a POC/Tech Lead..." 
+                          style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.3); height: 80px; width: 100%; border-radius: 12px; color: #fff; padding: 12px;" required></textarea>
             </div>
+            {% else %}
+            <div class="form-group">
+                <label style="color: var(--accent); font-weight: bold;">Notes on Delivery Status (Optional)</label>
+                <input type="text" name="delay_reason" placeholder="Optional notes about timeline..."
+                       style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 10px; width: 100%;">
+            </div>
+            {% endif %}
             <div class="form-group">
                 <label style="color: var(--primary); font-weight: bold;">Overall Process Improvements</label>
                 <textarea name="improvement_feedback" rows="3" placeholder="Suggestions for the next sprint/project..."

@@ -175,6 +175,24 @@
                     {% endif %}
                 </nav>
 
+                <!-- Notifications Widget -->
+                <div style="position: relative;" id="notif-widget">
+                    <div class="notif-trigger" onclick="toggleNotifs()" style="cursor: pointer; position: relative; width: 38px; height: 38px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <span style="font-size: 1.2rem;">🔔</span>
+                        <div id="notif-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; border: 2px solid #111827; align-items: center; justify-content: center;">0</div>
+                    </div>
+
+                    <div class="notif-dropdown" id="notif-dropdown" style="display: none; position: absolute; top: calc(100% + 10px); right: 0; background: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.2rem; width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); z-index: 1000;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="margin: 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Notifications</h4>
+                            <button onclick="markAllRead()" style="background: none; border: none; color: var(--primary); font-size: 0.75rem; cursor: pointer; font-weight: 600;">Mark all as read</button>
+                        </div>
+                        <div id="notif-list" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Dynamic items -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Profile Widget -->
                 {% set session_user_name = request.session.get('user_name', '') %}
                 {% set session_user_role = request.session.get('user_role', '') %}
@@ -218,6 +236,69 @@
                 </div>
             </div>
         </header>
+
+        <script>
+            async function fetchNotifs() {
+                try {
+                    const res = await fetch('/api/notifications');
+                    const data = await res.json();
+                    const badge = document.getElementById('notif-badge');
+                    const list = document.getElementById('notif-list');
+                    
+                    if (data.unread_count > 0) {
+                        badge.innerText = data.unread_count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    list.innerHTML = data.notifications.length ? '' : '<div style="text-align: center; padding: 2rem; opacity: 0.5; font-size: 0.85rem;">No new notifications</div>';
+                    data.notifications.forEach(n => {
+                        const item = document.createElement('div');
+                        item.style = `padding: 12px; border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s; background: ${n.is_read ? 'transparent' : 'rgba(99,102,241,0.05)'}; border: 1px solid ${n.is_read ? 'rgba(255,255,255,0.03)' : 'rgba(99,102,241,0.1)'}`;
+                        item.innerHTML = `
+                            <div style="font-weight: 700; font-size: 0.85rem; color: #fff; margin-bottom: 2px;">${n.title}</div>
+                            <div style="font-size: 0.78rem; color: #94a3b8; line-height: 1.4;">${n.message}</div>
+                            <div style="font-size: 0.65rem; color: #64748b; margin-top: 6px;">${n.created_at}</div>
+                        `;
+                        item.onclick = () => {
+                            if (n.link) window.location.href = n.link;
+                            markRead(n.id);
+                        };
+                        list.appendChild(item);
+                    });
+                } catch (e) { console.error("Notif error", e); }
+            }
+
+            async function markRead(id) {
+                await fetch(`/api/notifications/mark-read/${id}`, { method: 'POST' });
+                fetchNotifs();
+            }
+
+            async function markAllRead() {
+                await fetch('/api/notifications/mark-read-all', { method: 'POST' });
+                fetchNotifs();
+            }
+
+            function toggleNotifs() {
+                const dd = document.getElementById('notif-dropdown');
+                const pdd = document.getElementById('profile-dropdown');
+                dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+                if (pdd) pdd.style.display = 'none';
+                if (dd.style.display === 'block') fetchNotifs();
+            }
+
+            // Close when clicking outside
+            document.addEventListener('click', e => {
+                if (!document.getElementById('notif-widget').contains(e.target)) {
+                    document.getElementById('notif-dropdown').style.display = 'none';
+                }
+            });
+
+            // Initial fetch
+            fetchNotifs();
+            setInterval(fetchNotifs, 60000); // Check every minute
+        </script>
 
         {% if profile_success %}
         <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem;">

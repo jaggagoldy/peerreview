@@ -10,6 +10,34 @@
         <div class="score-badge score-high" style="font-size: 0.9rem;">Superadmin Access</div>
     </div>
 
+    <!-- Filter Form -->
+    <div class="glass-card" style="margin-bottom: 2rem; background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.05); padding: 1.2rem;">
+        <form method="get" action="/admin/users" style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Search by Name</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="e.g. Himanshu" 
+                       style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: #fff; padding: 10px 15px; border-radius: 10px; width: 100%;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; width: 200px;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Filter by Role</label>
+                <select name="role" style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: #fff; padding: 10px 15px; border-radius: 10px; width: 100%;">
+                    <option value="">All Roles</option>
+                    <option value="Dev" {% if role == 'Dev' %}selected{% endif %}>Dev</option>
+                    <option value="QA" {% if role == 'QA' %}selected{% endif %}>QA</option>
+                    <option value="Product" {% if role == 'Product' %}selected{% endif %}>Product</option>
+                    <option value="CEO" {% if role == 'CEO' %}selected{% endif %}>CEO</option>
+                    <option value="CTO" {% if role == 'CTO' %}selected{% endif %}>CTO</option>
+                    <option value="Scrum Master" {% if role == 'Scrum Master' %}selected{% endif %}>Scrum Master</option>
+                    <option value="Tech Lead" {% if role == 'Tech Lead' %}selected{% endif %}>Tech Lead</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary" style="padding: 10px 25px; border-radius: 10px;">Apply Filters</button>
+                <a href="/admin/users" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 10px; color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Clear</a>
+            </div>
+        </form>
+    </div>
+
     <div style="display: grid; gap: 1.5rem;">
         {% for user in users %}
         <div class="glass-card" style="padding: 1.5rem; margin-bottom: 0; border-color: rgba(255,255,255,0.05);">

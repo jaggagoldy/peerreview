@@ -121,6 +121,8 @@ USER_EMAILS = [
     {"email": "nikhil.thakur@quickreply.ai", "name": "Nikhil Thakur", "role": "Dev", "admin": False},
 ]
 
+ADMIN_EMAILS = ["himanshu.gupta@quickreply.ai", "hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
@@ -133,28 +135,28 @@ def on_startup():
             is_admin = u_data["admin"]
             
             # Default tabs
-            if role in ["Dev", "QA", "Product"]:
-                tabs = ["home", "review", "dashboard"]
-            else:
+            is_super = u_data["email"] in ADMIN_EMAILS
+            if is_super:
+                tabs = ["home", "review", "dashboard", "setup", "admin"]
+            elif role == "Tech Lead":
                 tabs = ["home", "review", "dashboard", "setup"]
+            else:
+                tabs = ["home", "review", "dashboard"]
             
-            perms = {"tabs": tabs}
-            if u_data["email"] == "goldy.jagga@quickreply.ai":
-                perms["is_superadmin"] = True
-                if "admin" not in perms["tabs"]: perms["tabs"].append("admin")
-
-            # Password Logic based on role
-            default_pass = "quickreply123"
-            if role == "Dev": default_pass = "Dev@123"
-            elif role == "QA": default_pass = "Qa@123"
-            elif role == "Product": default_pass = "Product@123"
+            perms = {"tabs": tabs, "is_superadmin": is_super}
+            
+            # Password Logic
+            if is_super:
+                default_pass = "Quickreply@123"
+            else:
+                default_pass = "12345678"
 
             if not existing:
                 user = User(
                     email=u_data["email"],
                     name=u_data["name"],
                     role=role,
-                    is_admin=is_admin,
+                    is_admin=is_admin or is_super,
                     password_hash=hash_password(default_pass),
                     permissions=json.dumps(perms)
                 )
@@ -162,8 +164,10 @@ def on_startup():
             else:
                 # Update existing user info
                 existing.role = role
-                existing.is_admin = is_admin
+                existing.is_admin = is_admin or is_super
                 existing.permissions = json.dumps(perms)
+                # Force password update for seeding if needed
+                existing.password_hash = hash_password(default_pass)
                 session.add(existing)
         
         session.commit()
@@ -394,7 +398,7 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
 async def create_project(
     name: str = Form(...),
     sprint: str = Form(...),
-    asana_link: Optional[str] = Form(None), # New
+    asana_link: Optional[str] = Form(None),
     design_date: Optional[str] = Form(None),
     dev_start: Optional[str] = Form(None),
     qa_start: Optional[str] = Form(None),
@@ -402,17 +406,21 @@ async def create_project(
     release_date: str = Form(...),
     dev_team: List[str] = Form(...),
     qa_team: List[str] = Form(...),
-    product: str = Form(...),
+    product: Optional[str] = Form(None),
     dev_poc: str = Form(...),
     qa_poc: str = Form(...),
     tech_lead_name: str = Form(...),
+    delivery_status: str = Form("On Time"),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     if not current_user or not current_user.is_admin:
         return HTMLResponse("Unauthorized", status_code=403)
     
-    # Helper to parse date or return None
+    # Smart POC Logic: If single person in team, they are the POC
+    if len(dev_team) == 1: dev_poc = dev_team[0]
+    if len(qa_team) == 1: qa_poc = qa_team[0]
+
     def parse_dt(dt_str):
         if not dt_str: return None
         try: return date.fromisoformat(dt_str)
@@ -429,21 +437,59 @@ async def create_project(
         release_date=date.fromisoformat(release_date),
         dev_team=json.dumps(dev_team),
         qa_team=json.dumps(qa_team),
-        product_owner=product,
+        product_owner=product or "N/A",
         dev_poc=dev_poc,
         qa_poc=qa_poc,
-        tech_lead_name=tech_lead_name
+        tech_lead_name=tech_lead_name,
+        delivery_status=delivery_status
     )
     session.add(project)
     session.commit()
+    session.refresh(project)
+
+    # CREATE NOTIFICATIONS for assigned team
+    all_team = dev_team + qa_team + [tech_lead_name]
+    if product: all_team.append(product)
+    
+    for member_name in set(all_team):
+        mu = session.exec(select(User).where(User.name == member_name)).first()
+        if mu:
+            notif = Notification(
+                user_id=mu.id,
+                title="New Project Assigned",
+                message=f"You have been assigned to project: {name}",
+                link=f"/"
+            )
+            session.add(notif)
+    session.commit()
+
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/review", response_class=HTMLResponse)
 async def review_form(request: Request, project_id: Optional[int] = None, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     if not current_user: return RedirectResponse(url="/login")
     
-    # Admins/Tech Leads/Super admins see all projects, others see only assigned ones
     perms = json.loads(current_user.permissions)
+    is_super = perms.get("is_superadmin")
+
+    # Only show projects where user is involved (Dev, QA, TL, or Product)
+    # Even super admins should only see projects they are part of FOR RATING PURPOSE
+    all_projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
+    assigned_projects = []
+    
+    for p in all_projects:
+        team = json.loads(p.dev_team) + json.loads(p.qa_team) + [p.tech_lead_name, p.product_owner]
+        if current_user.name in team:
+            assigned_projects.append(p)
+
+    selected_project = None
+    if project_id:
+        selected_project = session.get(Project, project_id)
+        # Verify involvement
+        if selected_project:
+            team = json.loads(selected_project.dev_team) + json.loads(selected_project.qa_team) + [selected_project.tech_lead_name, selected_project.product_owner]
+            if current_user.name not in team:
+                return HTMLResponse("Unauthorized: You are not involved in this project.", status_code=403)
     is_admin = current_user.is_admin
     
     all_projects = session.exec(select(Project)).all()
@@ -874,16 +920,30 @@ async def dashboard(
 # --- Admin Section (Goldy Only) ---
 
 @app.get("/admin/users", response_class=HTMLResponse)
-async def admin_users(request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+async def admin_users(
+    request: Request, 
+    search: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+):
     if not current_user: return RedirectResponse(url="/login")
     perms = json.loads(current_user.permissions)
     if not perms.get("is_superadmin"):
         return HTMLResponse("Unauthorized", status_code=403)
     
-    users = session.exec(select(User)).all()
+    statement = select(User)
+    if search:
+        statement = statement.where(User.name.ilike(f"%{search}%"))
+    if role:
+        statement = statement.where(User.role == role)
+    
+    users = session.exec(statement.order_by(User.name)).all()
     return templates.TemplateResponse(request=request, name="admin_users.html", context={
         "request": request,
-        "users": users
+        "users": users,
+        "search": search or "",
+        "role": role or ""
     })
 
 @app.post("/admin/users/update")
@@ -1000,3 +1060,47 @@ async def recycle_bin(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- NOTIFICATION APIs ---
+
+@app.get("/api/notifications")
+async def get_notifications(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    if not current_user: return {"notifications": [], "unread_count": 0}
+    from models import Notification
+    notifs = session.exec(select(Notification).where(Notification.user_id == current_user.id).order_by(Notification.id.desc()).limit(20)).all()
+    unread_count = session.exec(select(func.count(Notification.id)).where(Notification.user_id == current_user.id, Notification.is_read == False)).one()
+    return {
+        "notifications": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "message": n.message,
+                "link": n.link,
+                "is_read": n.is_read,
+                "created_at": n.created_at.strftime("%d %b, %Y")
+            } for n in notifs
+        ],
+        "unread_count": unread_count
+    }
+
+@app.post("/api/notifications/mark-read/{notif_id}")
+async def mark_read(notif_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    if not current_user: return {"status": "error"}
+    from models import Notification
+    notif = session.get(Notification, notif_id)
+    if notif and notif.user_id == current_user.id:
+        notif.is_read = True
+        session.add(notif)
+        session.commit()
+    return {"status": "ok"}
+
+@app.post("/api/notifications/mark-read-all")
+async def mark_read_all(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    if not current_user: return {"status": "error"}
+    from models import Notification
+    unread = session.exec(select(Notification).where(Notification.user_id == current_user.id, Notification.is_read == False)).all()
+    for n in unread:
+        n.is_read = True
+        session.add(n)
+    session.commit()
+    return {"status": "ok"}
