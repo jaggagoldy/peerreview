@@ -333,21 +333,9 @@ async def index(
         ]
 
     my_role = current_user.role
-    s1_avg = s2_avg = s3_avg = overall_avg = 0
+    overall_avg = 0
     if my_reviews_received:
-        s1_avg = round(sum(r.score_1 for r in my_reviews_received) / len(my_reviews_received), 2)
-        s2_avg = round(sum(r.score_2 for r in my_reviews_received) / len(my_reviews_received), 2)
-        s3_avg = round(sum(r.score_3 for r in my_reviews_received) / len(my_reviews_received), 2)
-        overall_avg = round((s1_avg + s2_avg + s3_avg) / 3, 2)
-
-    # Metric labels based on role
-    role_metrics = {
-        "Dev": ("Accountability", "Productivity", "Coordination"),
-        "QA": ("Test Coverage", "Bug Quality", "Communication"),
-        "Product": ("Req Clarity", "Support", "Change Handle"),
-        "Tech Lead": ("Technical Guidance", "Code Quality Support", "Team Mentorship"),
-    }
-    m1, m2, m3 = role_metrics.get(my_role, ("Metric 1", "Metric 2", "Metric 3"))
+        overall_avg = round(sum(r.score_1 for r in my_reviews_received) / len(my_reviews_received), 2)
 
     # ---- Reviews GIVEN by the user (what they rated others) ----
     my_reviews_given = [r for r in all_reviews if r.reviewer_name == current_user.name]
@@ -367,8 +355,7 @@ async def index(
         "live_count": live_count,
         "pending_count": pending_count,
         "my_reviews_received": my_reviews_received,
-        "s1_avg": s1_avg, "s2_avg": s2_avg, "s3_avg": s3_avg, "overall_avg": overall_avg,
-        "m1": m1, "m2": m2, "m3": m3,
+        "overall_avg": overall_avg,
         "given_by_project": given_by_project,
         "total_received": len(my_reviews_received),
         "total_given": len(my_reviews_given),
@@ -618,11 +605,11 @@ async def submit_reviews(
             reviewer_role=current_user.role,
             rated_person=person_name,
             rated_role=role,
-            score_1=int(scores.get("score_1", 0)),
-            score_2=int(scores.get("score_2", 0)),
-            score_3=int(scores.get("score_3", 0)),
-            score_poc=int(scores.get("score_poc")) if scores.get("score_poc") else None,
-            score_tech_lead=int(scores.get("score_tech_lead")) if scores.get("score_tech_lead") else None,
+            score_1=int(scores.get("score_1", 3)),
+            score_2=0,
+            score_3=0,
+            score_poc=None,
+            score_tech_lead=None,
             remarks=scores.get("remark", ""),
             improvement_feedback=improvement,
             delay_reason=form_data.get("delay_reason", "")
@@ -705,25 +692,21 @@ async def dashboard(
 
     # Calculations for Leaderboard (on filtered data)
     stats = {}
-    team_sums = {"Dev": {"s1": 0, "s2": 0, "s3": 0, "count": 0}, 
-                 "QA": {"s1": 0, "s2": 0, "s3": 0, "count": 0}, 
-                 "Product": {"s1": 0, "s2": 0, "s3": 0, "count": 0},
-                 "Tech Lead": {"s1": 0, "s2": 0, "s3": 0, "count": 0}}
-                 
+    team_sums = {"Dev": {"s1": 0, "count": 0},
+                 "QA": {"s1": 0, "count": 0},
+                 "Product": {"s1": 0, "count": 0},
+                 "Tech Lead": {"s1": 0, "count": 0}}
+
     for r in filtered_reviews:
         if r.rated_person not in stats:
-            stats[r.rated_person] = {"s1_total": 0, "s2_total": 0, "s3_total": 0, "count": 0, "role": r.rated_role, "poc_count": 0}
-        
+            stats[r.rated_person] = {"s1_total": 0, "count": 0, "role": r.rated_role}
+
         stats[r.rated_person]["s1_total"] += r.score_1
-        stats[r.rated_person]["s2_total"] += r.score_2
-        stats[r.rated_person]["s3_total"] += r.score_3
         stats[r.rated_person]["count"] += 1
-        
+
         # Team aggregations
         if r.rated_role in team_sums:
             team_sums[r.rated_role]["s1"] += r.score_1
-            team_sums[r.rated_role]["s2"] += r.score_2
-            team_sums[r.rated_role]["s3"] += r.score_3
             team_sums[r.rated_role]["count"] += 1
 
     # Precompute user role map early for the leaderboard
@@ -731,22 +714,12 @@ async def dashboard(
 
     leaderboard = []
     for name, data in stats.items():
-        # Check overall POC count for this person
         person_pocs = [p for p in all_projects if p.dev_poc == name or p.qa_poc == name]
-        
-        s1_avg = data["s1_total"] / data["count"]
-        s2_avg = data["s2_total"] / data["count"]
-        s3_avg = data["s3_total"] / data["count"]
-        overall = (s1_avg + s2_avg + s3_avg) / 3
-        
+        overall = data["s1_total"] / data["count"]
         current_role = user_role_map.get(name, data["role"])
-        
         leaderboard.append({
             "name": name,
             "role": current_role,
-            "s1": round(s1_avg, 2),
-            "s2": round(s2_avg, 2),
-            "s3": round(s3_avg, 2),
             "overall": round(overall, 2),
             "poc_count": len(person_pocs)
         })
@@ -756,14 +729,8 @@ async def dashboard(
     team_avgs = {}
     for loop_role, data in team_sums.items():
         if data["count"] > 0:
-            avg_s1 = data["s1"] / data["count"]
-            avg_s2 = data["s2"] / data["count"]
-            avg_s3 = data["s3"] / data["count"]
             team_avgs[loop_role] = {
-                "s1": round(avg_s1, 2),
-                "s2": round(avg_s2, 2),
-                "s3": round(avg_s3, 2),
-                "overall": round((avg_s1 + avg_s2 + avg_s3) / 3, 2)
+                "overall": round(data["s1"] / data["count"], 2)
             }
 
     # Project Specific Info
@@ -804,21 +771,17 @@ async def dashboard(
             if p.dev_poc == single_user or p.qa_poc == single_user:
                 poc_projects.append(p)
 
-        # Calculate metric averages for this specific user
-        u_s1 = u_s2 = u_s3 = 0
+        # Calculate score average for this specific user (single score model)
+        u_s1 = 0
         if user_reviews:
             u_s1 = round(sum(r.score_1 for r in user_reviews) / len(user_reviews), 2)
-            u_s2 = round(sum(r.score_2 for r in user_reviews) / len(user_reviews), 2)
-            u_s3 = round(sum(r.score_3 for r in user_reviews) / len(user_reviews), 2)
 
         # Trend data for graph
         project_scores = {}
         for r in user_reviews:
             if r.project_id not in project_scores:
                 project_scores[r.project_id] = []
-            pj_score = (r.score_1 + r.score_2 + r.score_3) / 3
-            if r.score_poc: pj_score = (pj_score + r.score_poc) / 2
-            project_scores[r.project_id].append(pj_score)
+            project_scores[r.project_id].append(r.score_1)
 
         trend = []
         for p_id in sorted(project_scores.keys()):
@@ -866,9 +829,7 @@ async def dashboard(
             "total_projects": len(involved_projects),
             "live_projects": len([p for p in involved_projects if p["is_live"]]),
             "poc_count": len(poc_projects),
-            "s1_avg": u_s1,
-            "s2_avg": u_s2,
-            "s3_avg": u_s3,
+            "score_avg": u_s1,
             "reviews": user_reviews,
             "trend": trend,
             "involved_projects": involved_projects,
@@ -876,9 +837,7 @@ async def dashboard(
             "best_project": best_project
         }
 
-    # Tech Lead Support Average (on filtered data)
-    tl_scores = [r.score_tech_lead for r in filtered_reviews if r.score_tech_lead is not None]
-    avg_tl_score = round(sum(tl_scores) / len(tl_scores), 2) if tl_scores else 0
+    avg_tl_score = 0  # Legacy field, no longer used
 
     # Smart filter maps for JS-driven dropdown auto-sync
     # user_role_map is already defined above

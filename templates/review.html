@@ -14,20 +14,22 @@
     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 2rem;">
         <div>
             <h1>Project Review Form</h1>
-            <p style="color: var(--text-muted);">Provide objective feedback for your team members in <b>{{
+            <p style="color: var(--text-muted);">Rate your team members for <b>{{
                     selected_project.name if selected_project else 'Select Project' }}</b></p>
         </div>
 
         <!-- Legend -->
         <div class="glass-card"
-            style="padding: 1rem; margin-bottom: 0px; border-color: rgba(99, 102, 241, 0.4); max-width: 450px;">
+            style="padding: 1rem; margin-bottom: 0px; border-color: rgba(99, 102, 241, 0.4); max-width: 400px;">
             <div
                 style="font-weight: 700; font-size: 0.8rem; margin-bottom: 8px; color: var(--primary); letter-spacing: 1px;">
                 RATING GUIDE</div>
-            <div style="font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                <span><b style="color: #ef4444;">1:</b> Poor / Low</span>
-                <span><b style="color: #f59e0b;">3:</b> Good / Average</span>
-                <span><b style="color: #10b981;">5:</b> Outstanding</span>
+            <div style="font-size: 0.75rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center;">
+                <span><b style="color: #ef4444; font-size: 1rem;">1</b><br><span style="opacity:0.7;">Poor</span></span>
+                <span><b style="color: #f97316; font-size: 1rem;">2</b><br><span style="opacity:0.7;">Below Avg</span></span>
+                <span><b style="color: #f59e0b; font-size: 1rem;">3</b><br><span style="opacity:0.7;">Average</span></span>
+                <span><b style="color: #84cc16; font-size: 1rem;">4</b><br><span style="opacity:0.7;">Good</span></span>
+                <span><b style="color: #10b981; font-size: 1rem;">5</b><br><span style="opacity:0.7;">Outstanding</span></span>
             </div>
         </div>
     </div>
@@ -75,107 +77,50 @@
 
         <h2
             style="margin-top: 3rem; color: var(--primary); font-size: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
-            Peer Ratings</h2>
+            Rate Your Peers</h2>
 
-        <div style="overflow-x: auto;">
-            <table class="review-table" style="width: 100%; border-collapse: separate; border-spacing: 0 10px;">
-                <thead>
-                    <tr
-                        style="text-align: left; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">
-                        <th style="padding: 0.5rem 1rem;">Team Member</th>
-                        <th style="padding: 0.5rem 1rem;">Metric 1</th>
-                        <th style="padding: 0.5rem 1rem;">Metric 2</th>
-                        <th style="padding: 0.5rem 1rem;">Metric 3</th>
-                        <th style="padding: 0.5rem 1rem; width: 120px;">POC Perf</th>
-                        <th style="padding: 0.5rem 1rem;">Specific Remarks</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for person, role in all_members %}
-                    <tr style="background: rgba(255,255,255,0.03); transition: transform 0.2s;">
-                        <td
-                            style="padding: 1.2rem 1rem; border-radius: 12px 0 0 12px; border-left: 3px solid var(--primary);">
-                            <div style="font-weight: 700; color: #fff;">{{ person }}</div>
-                            <div
-                                style="font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase;">
-                                {{ role }}</div>
-                        </td>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 2rem;">
+            Give each team member an overall rating out of <strong style="color:#fff;">5</strong> — 1 being lowest, 5 being highest.
+        </p>
 
-                        {% if role == 'Dev' %}
-                        {% set l1 = 'Accountability' %}{% set l2 = 'Productivity' %}{% set l3 = 'Coordination' %}
-                        {% elif role == 'QA' %}
-                        {% set l1 = 'Test Coverage' %}{% set l2 = 'Bug Quality' %}{% set l3 = 'Communication' %}
-                        {% elif role == 'Tech Lead' %}
-                        {% set l1 = 'Technical Guidance' %}{% set l2 = 'Code Quality Support' %}{% set l3 = 'Team
-                        Mentorship' %}
-                        {% else %}
-                        {% set l1 = 'Req Clarity' %}{% set l2 = 'Support' %}{% set l3 = 'Change Handle' %}
-                        {% endif %}
+        <div style="display: grid; gap: 1rem;">
+            {% for person, role in all_members %}
+            <div class="peer-row glass-card" style="margin-bottom: 0; padding: 1.4rem 1.8rem; display: flex; align-items: center; gap: 2rem; border-left: 3px solid var(--primary);">
 
-                        <td style="padding: 1rem 0.5rem;">
-                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l1 }}</div>
-                            <select name="rating[{{ person }}][score_1]" required class="rating-select">
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3" selected>3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
-                            </select>
-                        </td>
-                        <td style="padding: 1rem 0.5rem;">
-                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l2 }}</div>
-                            <select name="rating[{{ person }}][score_2]" required class="rating-select">
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3" selected>3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
-                            </select>
-                        </td>
-                        <td style="padding: 1rem 0.5rem;">
-                            <div style="font-size: 0.65rem; opacity: 0.6; margin-bottom: 4px;">{{ l3 }}</div>
-                            <select name="rating[{{ person }}][score_3]" required class="rating-select">
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3" selected>3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
-                            </select>
-                        </td>
-                        <td style="padding: 1rem 0.5rem;">
-                            {% if person == selected_project.dev_poc or person == selected_project.qa_poc %}
-                            <div
-                                style="font-size: 0.65rem; color: var(--accent); margin-bottom: 4px; font-weight: bold;">
-                                POC</div>
-                            <select name="rating[{{ person }}][score_poc]" class="rating-select poc-select">
-                                <option value="">N/A</option>
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3">3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
-                            </select>
-                            {% else %}
-                            <div style="color: rgba(255,255,255,0.1); font-size: 0.8rem; text-align: center;">-</div>
-                            {% endif %}
-                        </td>
-                        <td style="padding: 1.2rem 1rem; border-radius: 0 12px 12px 0;">
-                            <textarea name="rating[{{ person }}][remark]" placeholder="Notes for {{ person }}..."
-                                style="font-size: 0.8rem; height: 50px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 6px; width: 100%; min-width: 150px;"
-                                required></textarea>
-                        </td>
-                    </tr>
+                <!-- Person Info -->
+                <div style="flex: 1; min-width: 160px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 1rem;">{{ person }}</div>
+                    <div style="font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase; margin-top: 2px;">{{ role }}</div>
+                </div>
+
+                <!-- Star Rating -->
+                <div class="star-group" data-name="{{ person }}">
+                    {% for star in [1,2,3,4,5] %}
+                    <label class="star-label" title="{{ star }}">
+                        <input type="radio" name="rating[{{ person }}][score_1]" value="{{ star }}" required
+                            {% if star == 3 %}checked{% endif %}
+                            onchange="highlightStars('{{ person }}', {{ star }})">
+                        <span class="star-icon">★</span>
+                    </label>
                     {% endfor %}
-                </tbody>
-            </table>
+                    <span class="star-value-label" id="val-{{ person }}">3 / 5</span>
+                </div>
+
+                <!-- Remarks -->
+                <div style="flex: 1.5; min-width: 200px;">
+                    <textarea name="rating[{{ person }}][remark]" placeholder="Notes for {{ person }}... (required)"
+                        style="font-size: 0.82rem; height: 52px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; resize: none;"
+                        required></textarea>
+                </div>
+            </div>
+            {% endfor %}
         </div>
 
-
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 4rem;">
-            {% if selected_project.delivery_status == 'Delayed' and (current_user.name == selected_project.dev_poc or current_user.name == selected_project.qa_poc or current_user.role == 'Tech Lead') %}
+            {% if selected_project.delivery_status == 'Delayed' and (user.name == selected_project.dev_poc or user.name == selected_project.qa_poc or user.role == 'Tech Lead') %}
             <div class="form-group" style="grid-column: span 2;">
                 <label style="color: #f87171; font-weight: 800;">Reason for Project Delay (Mandatory)</label>
-                <textarea name="delay_reason" placeholder="Please provide a detailed reason for the project delay as you are a POC/Tech Lead..." 
+                <textarea name="delay_reason" placeholder="Please provide a detailed reason for the project delay as you are a POC/Tech Lead..."
                           style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.3); height: 80px; width: 100%; border-radius: 12px; color: #fff; padding: 12px;" required></textarea>
             </div>
             {% else %}
@@ -205,22 +150,70 @@
 </div>
 
 <style>
-    .rating-select {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 6px !important;
-        padding: 4px 8px !important;
-        color: #fff !important;
-        width: 100% !important;
+    .peer-row {
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-
-    .poc-select {
-        border-color: rgba(99, 102, 241, 0.4) !important;
+    .peer-row:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 24px rgba(99,102,241,0.15);
     }
-
-    .review-table tbody tr:hover {
-        background: rgba(255, 255, 255, 0.07) !important;
-        transform: scale(1.002);
+    .star-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .star-label {
+        cursor: pointer;
+        font-size: 2rem;
+        position: relative;
+    }
+    .star-label input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .star-icon {
+        color: rgba(255,255,255,0.15);
+        transition: color 0.15s, transform 0.15s;
+        display: inline-block;
+    }
+    .star-label:hover .star-icon,
+    .star-label.active .star-icon {
+        color: #f59e0b;
+        transform: scale(1.15);
+    }
+    .star-value-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-left: 8px;
+        min-width: 38px;
     }
 </style>
+
+<script>
+function highlightStars(person, value) {
+    const group = document.querySelector(`.star-group[data-name="${person}"]`);
+    if (!group) return;
+    const labels = group.querySelectorAll('.star-label');
+    labels.forEach((lbl, idx) => {
+        if (idx < value) {
+            lbl.classList.add('active');
+        } else {
+            lbl.classList.remove('active');
+        }
+    });
+    const valLabel = document.getElementById('val-' + person);
+    if (valLabel) valLabel.textContent = value + ' / 5';
+}
+
+// Init all with default value 3
+document.addEventListener('DOMContentLoaded', () => {
+    {% for person, role in all_members %}
+    highlightStars('{{ person }}', 3);
+    {% endfor %}
+});
+</script>
 {% endblock %}

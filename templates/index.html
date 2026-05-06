@@ -136,30 +136,18 @@
     <!-- ---- My Performance Stats ---- -->
     {% if my_reviews_received %}
     <h2 style="margin-bottom: 1.2rem;">My Performance</h2>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2.5rem;">
-        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
-            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m1 }}</div>
-            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s1_avg }}</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
-        </div>
-        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
-            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m2 }}</div>
-            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s2_avg }}</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
-        </div>
-        <div class="glass-card" style="text-align: center; margin-bottom: 0; border-bottom: 4px solid var(--primary);">
-            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">{{ m3 }}</div>
-            <div style="font-size: 2rem; font-weight: 800; color: #fff;">{{ s3_avg }}</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted);">avg / 5</div>
-        </div>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; margin-bottom: 2.5rem;">
         <div class="glass-card" style="text-align: center; margin-bottom: 0; background: rgba(99,102,241,0.1); border-color: var(--primary);">
-            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Overall Score</div>
-            <div style="font-size: 2rem; font-weight: 800; color: var(--primary);">{{ overall_avg }}</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted);">from {{ total_received }} review{{ 's' if total_received != 1 }}</div>
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Peer Rating</div>
+            <div style="font-size: 3rem; font-weight: 800; color: var(--primary);">{{ overall_avg }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">avg out of 5</div>
+        </div>
+        <div class="glass-card" style="text-align: center; margin-bottom: 0;">
+            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Total Reviews Received</div>
+            <div style="font-size: 3rem; font-weight: 800; color: var(--accent);">{{ total_received }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">from teammates</div>
         </div>
     </div>
-
-    <!-- Feedback removed from homepage to maintain privacy and focus on Dashboard view -->
     {% else %}
     <div class="glass-card" style="text-align: center; padding: 2.5rem; margin-bottom: 2.5rem; border-color: rgba(99,102,241,0.15);">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">📭</div>
@@ -220,10 +208,7 @@
                             <tr style="text-align: left; opacity: 0.5; font-size: 0.72rem; text-transform: uppercase;">
                                 <th style="padding: 6px 10px;">Person Rated</th>
                                 <th style="padding: 6px 10px;">Role</th>
-                                <th style="padding: 6px 10px;">M1</th>
-                                <th style="padding: 6px 10px;">M2</th>
-                                <th style="padding: 6px 10px;">M3</th>
-                                <th style="padding: 6px 10px;">Overall</th>
+                                <th style="padding: 6px 10px; text-align: center;">Rating</th>
                                 <th style="padding: 6px 10px;">Remarks</th>
                             </tr>
                         </thead>
@@ -232,12 +217,8 @@
                             <tr style="border-top: 1px solid rgba(255,255,255,0.04);">
                                 <td style="padding: 9px 10px; font-weight: 700; color: #fff;">{{ r.rated_person }}</td>
                                 <td style="padding: 9px 10px;"><span style="font-size: 0.7rem; background: rgba(255,255,255,0.07); padding: 2px 7px; border-radius: 4px;">{{ r.rated_role }}</span></td>
-                                <td style="padding: 9px 10px; color: var(--primary);">{{ r.score_1 }}</td>
-                                <td style="padding: 9px 10px; color: var(--primary);">{{ r.score_2 }}</td>
-                                <td style="padding: 9px 10px; color: var(--primary);">{{ r.score_3 }}</td>
-                                <td style="padding: 9px 10px;">
-                                    {% set ov = ((r.score_1 + r.score_2 + r.score_3) / 3)|round(1) %}
-                                    <span class="score-badge {% if ov >= 4.5 %}score-high{% elif ov >= 3.5 %}score-mid{% else %}score-low{% endif %}">{{ ov }}</span>
+                                <td style="padding: 9px 10px; text-align: center;">
+                                    <span class="score-badge {% if r.score_1 >= 4 %}score-high{% elif r.score_1 >= 3 %}score-mid{% else %}score-low{% endif %}">{{ r.score_1 }} / 5</span>
                                 </td>
                                 <td style="padding: 9px 10px; color: var(--text-muted); font-style: italic; font-size: 0.78rem;">{{ r.remarks[:55] }}{% if r.remarks|length > 55 %}...{% endif %}</td>
                             </tr>
