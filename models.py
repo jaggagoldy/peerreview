@@ -66,15 +66,18 @@ class DeletedProject(SQLModel, table=True):
     deleted_at: date = Field(default_factory=date.today)
     data_json: str # Store full project data as JSON for recovery
 
-sqlite_file_name = "data/database.db"
+# Database Configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/database.db")
 
-# Ensure the data directory exists before the engine tries to open the file
-import os
-os.makedirs(os.path.dirname(sqlite_file_name), exist_ok=True)
+# Fix for Render/Supabase postgres:// vs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+# Ensure data directory exists for SQLite fallback
+if DATABASE_URL.startswith("sqlite"):
+    os.makedirs("data", exist_ok=True)
 
-engine = create_engine(sqlite_url, echo=True)
+engine = create_engine(DATABASE_URL, echo=True)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

@@ -6,3 +6,4 @@ jinja2
 python-multipart
 itsdangerous
 aiofiles
+psycopg2-binary
