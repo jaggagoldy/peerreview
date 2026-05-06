@@ -98,12 +98,11 @@
                     {% for star in [1,2,3,4,5] %}
                     <label class="star-label" title="{{ star }}">
                         <input type="radio" name="rating[{{ person }}][score_1]" value="{{ star }}" required
-                            {% if star == 3 %}checked{% endif %}
                             onchange="highlightStars('{{ person }}', {{ star }})">
                         <span class="star-icon">★</span>
                     </label>
                     {% endfor %}
-                    <span class="star-value-label" id="val-{{ person }}">3 / 5</span>
+                    <span class="star-value-label" id="val-{{ person }}">Select</span>
                 </div>
 
                 <!-- Remarks -->
@@ -209,11 +208,9 @@ function highlightStars(person, value) {
     if (valLabel) valLabel.textContent = value + ' / 5';
 }
 
-// Init all with default value 3
+// No default initialization to force user selection
 document.addEventListener('DOMContentLoaded', () => {
-    {% for person, role in all_members %}
-    highlightStars('{{ person }}', 3);
-    {% endfor %}
+    // highlightStars is called on change
 });
 </script>
 {% endblock %}

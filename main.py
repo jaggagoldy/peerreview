@@ -512,21 +512,25 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
             qas = json.loads(selected_project.qa_team)
             product = selected_project.product_owner
             tech_lead_name = getattr(selected_project, 'tech_lead_name', '')
-
-    # Build rateable members: Anyone can rate anyone else in the project, but NOT themselves.
+            
     is_tl = current_user.role == "Tech Lead" or current_user.is_admin
+    all_users = session.exec(select(User)).all()
+    user_roles = {u.name: u.role for u in all_users}
+    
+    EXCLUDED_FROM_RATING = ["CEO", "CTO", "Scrum Master"]
+    
     all_members = []
     for d in devs:
-        if d != current_user.name:
+        if d != current_user.name and user_roles.get(d) not in EXCLUDED_FROM_RATING:
             all_members.append((d, "Dev"))
     for q in qas:
-        if q != current_user.name:
+        if q != current_user.name and user_roles.get(q) not in EXCLUDED_FROM_RATING:
             all_members.append((q, "QA"))
-    if product and product != current_user.name:
+    if product and product != current_user.name and user_roles.get(product) not in EXCLUDED_FROM_RATING:
         all_members.append((product, "Product"))
     
     # Add Tech Lead as a rateable person
-    if tech_lead_name and tech_lead_name != current_user.name:
+    if tech_lead_name and tech_lead_name != current_user.name and user_roles.get(tech_lead_name) not in EXCLUDED_FROM_RATING:
         all_members.append((tech_lead_name, "Tech Lead"))
 
     return templates.TemplateResponse(request=request, name="review.html", context={
