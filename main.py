@@ -391,10 +391,10 @@ async def create_project(
     qa_start: Optional[str] = Form(None),
     qa_end: Optional[str] = Form(None),
     release_date: str = Form(...),
-    dev_team: List[str] = Form(...),
-    qa_team: List[str] = Form([]),
+    dev_team: Optional[List[str]] = Form(None),
+    qa_team: Optional[List[str]] = Form(None),
     product: Optional[str] = Form(None),
-    dev_poc: str = Form(...),
+    dev_poc: Optional[str] = Form(None),
     qa_poc: Optional[str] = Form(None),
     tech_lead_name: Optional[str] = Form(None),
     delivery_status: str = Form("On Time"),
@@ -404,9 +404,17 @@ async def create_project(
     if not current_user or not current_user.is_admin:
         return HTMLResponse("Unauthorized", status_code=403)
     
+    # Robust Team/POC handling
+    dev_team = dev_team or []
+    qa_team = qa_team or []
+    
     # Smart POC Logic: If single person in team, they are the POC
     if len(dev_team) == 1: dev_poc = dev_team[0]
     if len(qa_team) == 1: qa_poc = qa_team[0]
+    
+    if not dev_poc and dev_team: dev_poc = dev_team[0]
+    if not dev_poc: dev_poc = "N/A"
+    if not qa_poc: qa_poc = "N/A"
 
     def parse_dt(dt_str):
         if not dt_str: return None
