@@ -58,11 +58,14 @@
                         <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">Sprint: {{ item.project.sprint }} &nbsp;|&nbsp; Release: {{ item.project.release_date }}</div>
                     </div>
                 </div>
+                {% set is_member = user.name in item.stats.expected_names or user.name in item.stats.submitted_names %}
+                {% if is_member %}
                 <a href="/review?project_id={{ item.project.id }}" class="btn"
                     onclick="event.stopPropagation()"
                     style="background: rgba(99,102,241,0.15); color: var(--primary); padding: 0.45rem 1.1rem; font-size: 0.82rem; flex-shrink: 0;">
                     {% if item.completed %}View Review{% else %}Review Now{% endif %}
                 </a>
+                {% endif %}
             </div>
             <!-- Collapsible body -->
             <div class="project-collapse-body" id="p{{ item.project.id }}" style="display: none; padding: 0 1.5rem 1.5rem;">
@@ -190,16 +193,19 @@
                         <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">Sprint: {{ item.project.sprint }} &nbsp;|&nbsp; Release: {{ item.project.release_date }}</div>
                     </div>
                 </div>
-                {% if not item.completed %}
-                <a href="/review?project_id={{ item.project.id }}" class="btn btn-primary" onclick="event.stopPropagation()"
-                    style="padding: 0.5rem 1.2rem; font-size: 0.82rem; flex-shrink: 0;">Submit Review →</a>
-                {% else %}
-                <div style="text-align: right; flex-shrink: 0;">
-                    <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600; display: block;">✓ Done</span>
-                    {% if not item.stats.is_live %}
-                    <span style="font-size: 0.65rem; opacity: 0.5; font-style: italic;">Waiting for others...</span>
+                {% set is_member = user.name in item.stats.expected_names or user.name in item.stats.submitted_names %}
+                {% if is_member %}
+                    {% if not item.completed %}
+                    <a href="/review?project_id={{ item.project.id }}" class="btn btn-primary" onclick="event.stopPropagation()"
+                        style="padding: 0.5rem 1.2rem; font-size: 0.82rem; flex-shrink: 0;">Submit Review →</a>
+                    {% else %}
+                    <div style="text-align: right; flex-shrink: 0;">
+                        <span style="font-size: 0.8rem; color: var(--accent); font-weight: 600; display: block;">✓ Done</span>
+                        {% if not item.stats.is_live %}
+                        <span style="font-size: 0.65rem; opacity: 0.5; font-style: italic;">Waiting for others...</span>
+                        {% endif %}
+                    </div>
                     {% endif %}
-                </div>
                 {% endif %}
             </div>
 

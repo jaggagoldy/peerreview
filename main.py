@@ -397,6 +397,7 @@ async def create_project(
     dev_poc: Optional[str] = Form(None),
     qa_poc: Optional[str] = Form(None),
     tech_lead_name: Optional[str] = Form(None),
+    project_size: int = Form(2),
     delivery_status: str = Form("On Time"),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -436,6 +437,7 @@ async def create_project(
         dev_poc=dev_poc,
         qa_poc=qa_poc if qa_poc else "N/A",
         tech_lead_name=tech_lead_name if tech_lead_name else "N/A",
+        project_size=project_size,
         delivery_status=delivery_status
     )
     session.add(project)
@@ -468,35 +470,24 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
     is_super = perms.get("is_superadmin")
 
     # Only show projects where user is involved (Dev, QA, TL, or Product)
-    # Even super admins should only see projects they are part of FOR RATING PURPOSE
+    # STRICT RULE: Even super admins should only see projects they are part of FOR RATING PURPOSE
     all_projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
-    assigned_projects = []
+    user_projects = []
     
     for p in all_projects:
         team = json.loads(p.dev_team) + json.loads(p.qa_team) + [p.tech_lead_name, p.product_owner]
         if current_user.name in team:
-            assigned_projects.append(p)
+            user_projects.append(p)
 
     selected_project = None
     if project_id:
         selected_project = session.get(Project, project_id)
-        # Verify involvement
         if selected_project:
             team = json.loads(selected_project.dev_team) + json.loads(selected_project.qa_team) + [selected_project.tech_lead_name, selected_project.product_owner]
             if current_user.name not in team:
-                return HTMLResponse("Unauthorized: You are not involved in this project.", status_code=403)
-    is_admin = current_user.is_admin
+                return HTMLResponse("Unauthorized: You are not involved in this project and cannot submit reviews for it.", status_code=403)
     
-    all_projects = session.exec(select(Project)).all()
-    if is_admin:
-        user_projects = all_projects
-    else:
-        user_projects = [
-            p for p in all_projects 
-            if current_user.name in json.loads(p.dev_team) 
-            or current_user.name in json.loads(p.qa_team)
-            or current_user.name == p.product_owner
-        ]
+    is_admin = current_user.is_admin
 
     # Check if review already completed for selected project
     already_reviewed = False
@@ -569,13 +560,13 @@ async def submit_reviews(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # SECURITY CHECK: Is user part of this project?
+    # SECURITY CHECK: Is user part of this project? (STRICT: Admin status doesn't grant review access)
     devs = json.loads(project.dev_team)
     qas = json.loads(project.qa_team)
     all_members = devs + qas + [project.product_owner, getattr(project, 'tech_lead_name', '')]
     
-    if current_user.name not in all_members and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="You are not authorized to review this project.")
+    if current_user.name not in all_members:
+        raise HTTPException(status_code=403, detail="You are not authorized to review this project as you are not a team member.")
 
     # Prevent Duplicate Submission
     existing = session.exec(select(Review).where(Review.project_id == project_id, Review.reviewer_name == current_user.name)).first()
@@ -714,28 +705,50 @@ async def dashboard(
             stats[r.rated_person] = {"s1_total": 0, "count": 0, "role": r.rated_role}
 
         stats[r.rated_person]["s1_total"] += r.score_1
-        stats[r.rated_person]["count"] += 1
-
         # Team aggregations
         if r.rated_role in team_sums:
             team_sums[r.rated_role]["s1"] += r.score_1
             team_sums[r.rated_role]["count"] += 1
-
+            
     # Precompute user role map early for the leaderboard
     user_role_map = {u.name: u.role for u in all_users}
+    project_map = {p.id: p for p in all_projects}
+
+    # Group scores by user and project for weighted impact calculation
+    user_project_scores = {}
+    for r in filtered_reviews:
+        user_project_scores.setdefault(r.rated_person, {}).setdefault(r.project_id, []).append(r.score_1)
 
     leaderboard = []
-    for name, data in stats.items():
+    for name, projects_data in user_project_scores.items():
+        total_impact = 0
+        total_s1 = 0
+        total_count = 0
+        involved_project_ids = set(projects_data.keys())
+        
+        for p_id, scores in projects_data.items():
+            proj = project_map.get(p_id)
+            if proj:
+                avg_for_proj = sum(scores) / len(scores)
+                total_impact += avg_for_proj * (proj.project_size if hasattr(proj, 'project_size') else 1)
+                total_s1 += sum(scores)
+                total_count += len(scores)
+        
         person_pocs = [p for p in all_projects if p.dev_poc == name or p.qa_poc == name]
-        overall = data["s1_total"] / data["count"]
-        current_role = user_role_map.get(name, data["role"])
+        overall = total_s1 / total_count if total_count > 0 else 0
+        current_role = user_role_map.get(name, "Unknown")
+        
         leaderboard.append({
             "name": name,
             "role": current_role,
             "overall": round(overall, 2),
+            "impact_points": round(total_impact, 1),
+            "project_count": len(involved_project_ids),
             "poc_count": len(person_pocs)
         })
-    leaderboard = sorted(leaderboard, key=lambda x: x["overall"], reverse=True)
+    
+    # Primary sort by Impact Points, secondary by Overall average
+    leaderboard = sorted(leaderboard, key=lambda x: (x["impact_points"], x["overall"]), reverse=True)
 
     # Team Averages
     team_avgs = {}
@@ -842,6 +855,7 @@ async def dashboard(
             "live_projects": len([p for p in involved_projects if p["is_live"]]),
             "poc_count": len(poc_projects),
             "score_avg": u_s1,
+            "impact_points": round(total_impact, 1),
             "reviews": user_reviews,
             "trend": trend,
             "involved_projects": involved_projects,

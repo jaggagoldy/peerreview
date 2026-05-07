@@ -275,15 +275,18 @@
                     <span
                         style="font-size:0.68rem;background:rgba(0,0,0,0.25);color:{{ rc }};border:1px solid {{ rc }}44;padding:2px 10px;border-radius:20px;font-weight:700;text-transform:uppercase;">{{
                         entry.role }}</span>
-
+                    <div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:var(--accent);">
+                        🔥 {{ entry.impact_points }} IMPACT POINTS
+                    </div>
                 </div>
                 <div style="text-align:center;">
                     <div
                         style="font-size:0.58rem;opacity:0.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">
-                        Overall</div>
+                        Avg Rating</div>
                     <div class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}"
                         style="font-size:1.1rem;padding:5px 13px;">{{ entry.overall }}</div>
                 </div>
+            </div>       </div>
             </div>
             <div style="margin-top:0.5rem;">
                 <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:6px;">
@@ -393,7 +396,7 @@
         {% elif user_profile.role == 'Tech Lead' %}{% set prc='#a78bfa' %}
         {% else %}{% set prc='#f59e0b' %}{% endif %}
 
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:2rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.5rem;margin-bottom:2rem;">
             <div class="glass-card" style="text-align:center;margin-bottom:0;">
                 <div style="font-size:0.65rem;opacity:0.6;margin-bottom:4px;text-transform:uppercase;">Projects Worked</div>
                 <div style="font-size:2rem;font-weight:800;color:var(--primary);">{{ user_profile.total_projects }}</div>
@@ -401,6 +404,11 @@
             <div class="glass-card" style="text-align:center;margin-bottom:0;">
                 <div style="font-size:0.65rem;opacity:0.6;margin-bottom:4px;text-transform:uppercase;">Live Ratings</div>
                 <div style="font-size:2rem;font-weight:800;color:var(--accent);">{{ user_profile.live_projects }}</div>
+            </div>
+            <div class="glass-card" style="text-align:center;margin-bottom:0;background:rgba(16,185,129,0.05);border-color:var(--accent);">
+                <div style="font-size:0.65rem;opacity:0.6;margin-bottom:4px;text-transform:uppercase;">Impact Points</div>
+                <div style="font-size:2rem;font-weight:800;color:var(--accent);">{{ user_profile.impact_points }}</div>
+                <div style="font-size:0.65rem;color:var(--text-muted);">reward basis</div>
             </div>
             <div class="glass-card" style="text-align:center;margin-bottom:0;background:rgba(255,255,255,0.03);">
                 <div style="font-size:0.65rem;opacity:0.6;margin-bottom:4px;text-transform:uppercase;">Avg Peer Rating</div>
@@ -550,7 +558,9 @@ user_profile)) %}
                 <tr style="text-align:left;background:rgba(255,255,255,0.01);opacity:0.6;font-weight:600;">
                     <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);">Employee</th>
                     <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);">Role</th>
-                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">Peer Rating</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">Projects</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;">Avg Rating</th>
+                    <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;color:var(--accent);">Impact Points</th>
                     <th style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);text-align:right;">Actions</th>
                 </tr>
             </thead>
@@ -569,10 +579,16 @@ user_profile)) %}
                     <td style="padding:1rem 1.5rem;">
                         <span style="font-size:0.65rem;background:rgba(255,255,255,0.06);color:{{ ec }};padding:3px 10px;border-radius:4px;font-weight:800;text-transform:uppercase;">{{ entry.role }}</span>
                     </td>
+                    <td style="padding:1rem 1.5rem;text-align:center;opacity:0.8;">
+                        {{ entry.project_count }}
+                    </td>
                     <td style="padding:1rem 1.5rem;text-align:center;">
                         <span class="score-badge {% if entry.overall >= 4.5 %}score-high{% elif entry.overall >= 3.5 %}score-mid{% else %}score-low{% endif %}" style="font-size:0.9rem;padding:3px 12px;font-weight:800;">
-                            {{ entry.overall }} / 5
+                            {{ entry.overall }}
                         </span>
+                    </td>
+                    <td style="padding:1rem 1.5rem;text-align:center;">
+                        <span style="font-weight:800;color:var(--accent);font-size:1.1rem;">{{ entry.impact_points }}</span>
                     </td>
                     <td style="padding:1rem 1.5rem;text-align:right;">
                         <button onclick="window.location.href='/dashboard?user_name={{ entry.name }}'" 
