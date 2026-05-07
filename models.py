@@ -30,6 +30,7 @@ class Project(SQLModel, table=True):
     qa_poc: Optional[str] = Field(default="N/A")
     tech_lead_name: Optional[str] = Field(default="Niteesh Mahato")
     project_size: int = Field(default=2) # Points/Weight for this project
+    delivery_status: str = Field(default="On Time")
 
     def get_dev_team(self) -> List[str]:
         return json.loads(self.dev_team)

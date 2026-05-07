@@ -131,17 +131,26 @@ ADMIN_EMAILS = ["himanshu.gupta@quickreply.ai", "hridayesh.gupta@quickreply.ai",
 def on_startup():
     create_db_and_tables()
     
-    # Manual migration for SQLite: Add project_size column if it doesn't exist
+    # Manual migration for SQLite: Ensure all columns exist
     with Session(engine) as session:
         try:
             from sqlalchemy import text
-            session.execute(text("ALTER TABLE project ADD COLUMN project_size INTEGER DEFAULT 2"))
-            session.commit()
-            print("✅ Migration: Added project_size column to Project table.")
-        except Exception:
-            # Column likely already exists
+            # Add project_size
+            try:
+                session.execute(text("ALTER TABLE project ADD COLUMN project_size INTEGER DEFAULT 2"))
+                session.commit()
+            except Exception: session.rollback()
+            
+            # Add delivery_status
+            try:
+                session.execute(text("ALTER TABLE project ADD COLUMN delivery_status VARCHAR DEFAULT 'On Time'"))
+                session.commit()
+            except Exception: session.rollback()
+            
+            print("✅ Migration: Verified Project table columns.")
+        except Exception as e:
+            print(f"❌ Migration Error: {e}")
             session.rollback()
-            pass
 
     # Seed users
     with Session(engine) as session:
