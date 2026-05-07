@@ -80,13 +80,17 @@ This is an automated notification. CC: {', '.join(cc_emails)}
     msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
-        print(f"✅ Email sent successfully to {to_email}")
+        print(f"✅ [EMAIL] Successfully sent to {to_email}")
+    except smtplib.SMTPAuthenticationError:
+        print(f"❌ [EMAIL] Authentication Failed: Check SMTP_USER and SMTP_PASS.")
+    except smtplib.SMTPException as e:
+        print(f"❌ [EMAIL] SMTP Error: {e}")
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ [EMAIL] Unexpected Error: {e}")
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
     """
@@ -550,7 +554,7 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
 async def submit_reviews(
     request: Request,
     project_id: int = Form(...),
-    background_tasks: BackgroundTasks = None,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
