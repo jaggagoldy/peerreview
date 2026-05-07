@@ -30,11 +30,11 @@ import smtplib
 from email.message import EmailMessage
 
 # --- EMAIL SERVICE (Production SMTP) ---
-SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com" # Adjust region if needed
-SMTP_PORT = 587
+SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com"
+SMTP_PORT = 465  # Using SSL Port for better reliability on Render
 SMTP_USER = "AKIARVESOK3RUPXF2W4R"
 SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
-FROM_EMAIL = "dev.peerreview@intelliticks.com" # Updated sender address
+FROM_EMAIL = "dev.peerreview@intelliticks.com"
 
 def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
     """
@@ -51,7 +51,7 @@ def send_review_notification_email_sync(user: User, project: Project, reviews: L
 ---
 Resource: {r.rated_person} ({r.rated_role})
 Scores: M1: {r.score_1} | M2: {r.score_2} | M3: {r.score_3}
-{"POC Score: " + str(r.score_poc) if r.score_poc else ""}
+{"POC Score: " + str(r.score_poc) if getattr(r, 'score_poc', None) else ""}
 Remarks: {r.remarks if r.remarks else "N/A"}
 """
 
@@ -80,8 +80,8 @@ This is an automated notification. CC: {', '.join(cc_emails)}
     msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=45) as server:
-            server.starttls()
+        # Use SMTP_SSL for Port 465
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=45) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         print(f"✅ [EMAIL] Successfully sent to {to_email}")
