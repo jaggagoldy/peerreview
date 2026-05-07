@@ -553,8 +553,8 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
 @app.post("/review")
 async def submit_reviews(
     request: Request,
-    project_id: int = Form(...),
     background_tasks: BackgroundTasks,
+    project_id: int = Form(...),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
