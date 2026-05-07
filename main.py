@@ -30,7 +30,7 @@ import smtplib
 from email.message import EmailMessage
 
 # --- EMAIL SERVICE (Production SMTP) ---
-SMTP_HOST = "email-smtp.us-east-1.amazonaws.com" # Adjust region if needed
+SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com" # Adjust region if needed
 SMTP_PORT = 587
 SMTP_USER = "AKIARVESOK3RUPXF2W4R"
 SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
@@ -80,13 +80,15 @@ This is an automated notification. CC: {', '.join(cc_emails)}
     msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=45) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         print(f"✅ [EMAIL] Successfully sent to {to_email}")
     except smtplib.SMTPAuthenticationError:
         print(f"❌ [EMAIL] Authentication Failed: Check SMTP_USER and SMTP_PASS.")
+    except smtplib.SMTPConnectError:
+        print(f"❌ [EMAIL] Connection Failed: Could not connect to {SMTP_HOST} on port {SMTP_PORT}.")
     except smtplib.SMTPException as e:
         print(f"❌ [EMAIL] SMTP Error: {e}")
     except Exception as e:
@@ -756,7 +758,9 @@ async def dashboard(
             proj = project_map.get(p_id)
             if proj:
                 avg_for_proj = sum(scores) / len(scores)
-                total_impact += avg_for_proj * (proj.project_size if hasattr(proj, 'project_size') else 1)
+                p_size = getattr(proj, 'project_size', 2)
+                if p_size is None: p_size = 2
+                total_impact += avg_for_proj * p_size
                 total_s1 += sum(scores)
                 total_count += len(scores)
         
@@ -839,7 +843,8 @@ async def dashboard(
             pj = session.get(Project, p_id)
             if pj:
                 avg = sum(project_scores[p_id]) / len(project_scores[p_id])
-                trend.append({"project": pj.name, "score": round(avg, 2), "date": pj.release_date.isoformat()})
+                p_date = pj.release_date.isoformat() if pj.release_date else date.today().isoformat()
+                trend.append({"project": pj.name, "score": round(avg, 2), "date": p_date})
 
         # Best project
         best_project = None
