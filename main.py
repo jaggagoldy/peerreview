@@ -259,7 +259,7 @@ def get_project_stats(p: Project, all_reviews: List[Review]):
     """
     devs = json.loads(p.dev_team) if p.dev_team else []
     qas = json.loads(p.qa_team) if p.qa_team else []
-    expected_reviewers = set([m for m in (devs + qas + [p.product_owner, getattr(p, 'tech_lead_name', '')]) if m])
+    expected_reviewers = set([m for m in (devs + qas + [p.product_owner, getattr(p, 'tech_lead_name', '')]) if m and m != "N/A"])
     
     submitted_reviewers = set([r.reviewer_name for r in all_reviews if r.project_id == p.id])
     

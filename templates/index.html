@@ -92,10 +92,16 @@
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; font-size: 0.82rem; color: var(--text-muted);">
                     <div><span style="opacity: 0.5;">Dev Team:</span><br><span style="color: #fff;">{{ item.project.dev_team | from_json | join(', ') }}</span></div>
+                    {% if item.project.qa_team != '[]' %}
                     <div><span style="opacity: 0.5;">QA Team:</span><br><span style="color: #fff;">{{ item.project.qa_team | from_json | join(', ') }}</span></div>
+                    {% endif %}
                     <div><span style="opacity: 0.5;">Dev POC:</span><br><span style="color: #fff;">{{ item.project.dev_poc }}</span></div>
+                    {% if item.project.qa_poc != 'N/A' %}
                     <div><span style="opacity: 0.5;">QA POC:</span><br><span style="color: #fff;">{{ item.project.qa_poc }}</span></div>
+                    {% endif %}
+                    {% if item.project.tech_lead_name != 'N/A' %}
                     <div><span style="opacity: 0.5;">Tech Lead:</span><br><span style="color: #fff;">{{ item.project.tech_lead_name }}</span></div>
+                    {% endif %}
                 </div>
                 {% if perms_is_superadmin %}
                 <div style="margin-top: 1rem; text-align: right;">
