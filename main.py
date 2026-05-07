@@ -31,7 +31,7 @@ from email.message import EmailMessage
 
 # --- EMAIL SERVICE (Production SMTP) ---
 SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com"
-SMTP_PORT = 465  # Using SSL Port for better reliability on Render
+SMTP_PORT = 2525  # Using 2525 as a common alternative to bypassed blocks on 587/465
 SMTP_USER = "AKIARVESOK3RUPXF2W4R"
 SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
 FROM_EMAIL = "dev.peerreview@intelliticks.com"
@@ -80,8 +80,9 @@ This is an automated notification. CC: {', '.join(cc_emails)}
     msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        # Use SMTP_SSL for Port 465
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=45) as server:
+        # Use standard SMTP with STARTTLS on Port 2525
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=45) as server:
+            server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
         print(f"✅ [EMAIL] Successfully sent to {to_email}")
