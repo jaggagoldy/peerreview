@@ -392,11 +392,11 @@ async def create_project(
     qa_end: Optional[str] = Form(None),
     release_date: str = Form(...),
     dev_team: List[str] = Form(...),
-    qa_team: List[str] = Form(...),
+    qa_team: List[str] = Form([]),
     product: Optional[str] = Form(None),
     dev_poc: str = Form(...),
-    qa_poc: str = Form(...),
-    tech_lead_name: str = Form(...),
+    qa_poc: Optional[str] = Form(None),
+    tech_lead_name: Optional[str] = Form(None),
     delivery_status: str = Form("On Time"),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -423,11 +423,11 @@ async def create_project(
         qa_end=parse_dt(qa_end),
         release_date=date.fromisoformat(release_date),
         dev_team=json.dumps(dev_team),
-        qa_team=json.dumps(qa_team),
-        product_owner=product or "N/A",
+        qa_team=json.dumps(qa_team) if qa_team else "[]",
+        product_owner=product if product else "N/A",
         dev_poc=dev_poc,
-        qa_poc=qa_poc,
-        tech_lead_name=tech_lead_name,
+        qa_poc=qa_poc if qa_poc else "N/A",
+        tech_lead_name=tech_lead_name if tech_lead_name else "N/A",
         delivery_status=delivery_status
     )
     session.add(project)

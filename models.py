@@ -24,11 +24,11 @@ class Project(SQLModel, table=True):
     qa_end: Optional[date] = None
     release_date: date
     dev_team: str # Stored as JSON string
-    qa_team: str # Stored as JSON string
-    product_owner: str
+    qa_team: Optional[str] = Field(default="[]") # Stored as JSON string
+    product_owner: Optional[str] = Field(default="N/A")
     dev_poc: str
-    qa_poc: str
-    tech_lead_name: str = Field(default="Niteesh Mahato")
+    qa_poc: Optional[str] = Field(default="N/A")
+    tech_lead_name: Optional[str] = Field(default="Niteesh Mahato")
 
     def get_dev_team(self) -> List[str]:
         return json.loads(self.dev_team)
