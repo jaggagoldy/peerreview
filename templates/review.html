@@ -116,7 +116,7 @@
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 4rem;">
-            {% if selected_project.delivery_status == 'Delayed' and (user.name == selected_project.dev_poc or user.name == selected_project.qa_poc or user.role == 'Tech Lead') %}
+            {% if selected_project.delivery_status != 'On Time' and (user.name == selected_project.dev_poc or user.name == selected_project.qa_poc or user.role == 'Tech Lead' or is_tech_lead) %}
             <div class="form-group" style="grid-column: span 2;">
                 <label style="color: #f87171; font-weight: 800;">Reason for Project Delay (Mandatory)</label>
                 <textarea name="delay_reason" placeholder="Please provide a detailed reason for the project delay as you are a POC/Tech Lead..."
