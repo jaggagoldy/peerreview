@@ -26,12 +26,12 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return hash_password(plain_password) == hashed_password
 
-import smtplib
-from email.message import EmailMessage
-
 # --- EMAIL SERVICE (SendGrid HTTP API - Works on Render) ---
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-FROM_EMAIL = "goldy.jagga@quickreply.ai"  # Verified sender in SendGrid
+SENDGRID_API_KEY_ENV = "SENDGRID_API_KEY"
+FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "goldy.jagga@quickreply.ai").strip()  # Must be verified in SendGrid
+
+def get_sendgrid_api_key() -> str:
+    return os.getenv(SENDGRID_API_KEY_ENV, "").strip()
 
 def send_review_notification_email_sync(
     to_email: str,
@@ -42,17 +42,19 @@ def send_review_notification_email_sync(
 ):
     """Sends review notification via SendGrid HTTP API (works on Render)."""
     print(f"[EMAIL] Attempting to send to {to_email} for project {project_name}")
+    api_key = get_sendgrid_api_key()
     
-    if not SENDGRID_API_KEY:
-        print("[EMAIL] FAILED: SENDGRID_API_KEY is not set in environment variables!")
+    if not api_key:
+        print(f"[EMAIL] FAILED: {SENDGRID_API_KEY_ENV} is not visible to the running app process.")
         return
+    print(f"[EMAIL] SendGrid key loaded from {SENDGRID_API_KEY_ENV} (length={len(api_key)}, prefix={api_key[:3]}...)")
     
     if not review_rows:
         print("[EMAIL] FAILED: No reviews to include in email. Skipping.")
         return
 
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email
+    from sendgrid.helpers.mail import Mail, Email, ReplyTo
 
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
     # Avoid CC-ing the reviewer themselves
@@ -78,16 +80,18 @@ This is an automated notification from the 360 Peer Review System.
         subject=subject,
         plain_text_content=email_body
     )
-    message.reply_to = FROM_EMAIL
+    message.reply_to = ReplyTo(FROM_EMAIL)
     for cc in cc_emails:
         message.add_cc(cc)
 
     try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg = SendGridAPIClient(api_key)
         response = sg.send(message)
         print(f"[EMAIL] SUCCESS! Sent to {to_email}. Status: {response.status_code}")
     except Exception as e:
-        print(f"[EMAIL] SendGrid Error: {e}")
+        status_code = getattr(e, "status_code", None)
+        body = getattr(e, "body", "")
+        print(f"[EMAIL] SendGrid Error: status={status_code} body={body} error={e}")
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
     """Triggers email sending in the background."""
