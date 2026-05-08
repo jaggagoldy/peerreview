@@ -29,72 +29,49 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 import smtplib
 from email.message import EmailMessage
 
-# --- EMAIL SERVICE (Production AWS SDK) ---
-AWS_REGION = "eu-west-1"
+# --- EMAIL SERVICE (SMTP via AWS SES Port 587 - Tested & Working) ---
+SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com"
+SMTP_PORT = 587
+SMTP_USER = "AKIARVESOK3RUPXF2W4R"
+SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
 FROM_EMAIL = "dev.peerreview@intelliticks.com"
 
 def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
-    """
-    Synchronous helper to send email using AWS SDK (Boto3).
-    Bypasses SMTP port blocks by using HTTPS (Port 443).
-    """
-    import boto3
-    from botocore.exceptions import ClientError
-
+    """Sends review notification via AWS SES SMTP Port 587 + STARTTLS."""
     to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
-    
     subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
-    
+
     breakdown_text = ""
     for r in reviews:
-        breakdown_text += f"""
----
-Resource: {r.rated_person} ({r.rated_role})
-Scores: M1: {r.score_1} | M2: {r.score_2} | M3: {r.score_3}
-{"POC Score: " + str(r.score_poc) if getattr(r, 'score_poc', None) else ""}
-Remarks: {r.remarks if r.remarks else "N/A"}
-"""
+        breakdown_text += f"\n---\nResource: {r.rated_person} ({r.rated_role})\nRating: {r.score_1}/5\nRemarks: {r.remarks or 'N/A'}\n"
 
-    email_body = f"""
-Hello {user.name},
+    email_body = f"""Hello {user.name},
 
-You have successfully submitted performance reviews for the project '{project.name}'.
-
-Details of your submission:
+You have successfully submitted performance reviews for '{project.name}'.
 {breakdown_text}
+Improvement Feedback: {reviews[0].improvement_feedback if reviews else 'N/A'}
+Delay Notes: {reviews[0].delay_reason if reviews else 'N/A'}
 
-Project Improvement Feedback:
-{reviews[0].improvement_feedback if reviews else "N/A"}
-
-Delay Reason (if any):
-{reviews[0].delay_reason if reviews else "N/A"}
-
-This is an automated notification. CC: {', '.join(cc_emails)}
+This is an automated notification.
 """
-    
-    # Boto3 automatically looks for AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in environment
-    client = boto3.client('ses', region_name=AWS_REGION)
+    msg = EmailMessage()
+    msg.set_content(email_body)
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to_email
+    msg["Cc"] = ", ".join(cc_emails)
 
     try:
-        response = client.send_email(
-            Destination={
-                'ToAddresses': [to_email],
-                'CcAddresses': cc_emails,
-            },
-            Message={
-                'Body': {
-                    'Text': {'Data': email_body},
-                },
-                'Subject': {'Data': subject},
-            },
-            Source=FROM_EMAIL,
-        )
-        print(f"✅ [EMAIL] Successfully sent via SDK. MessageId: {response['MessageId']}")
-    except ClientError as e:
-        print(f"❌ [EMAIL] AWS SDK Error: {e.response['Error']['Message']}")
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        print(f"[EMAIL] Sent successfully to {to_email}")
+    except smtplib.SMTPAuthenticationError:
+        print("[EMAIL] Auth Failed: Check SMTP_PASSWORD env var on Render.")
     except Exception as e:
-        print(f"❌ [EMAIL] Unexpected Error: {e}")
+        print(f"[EMAIL] Error: {e}")
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
     """
