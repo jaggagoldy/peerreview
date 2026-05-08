@@ -29,15 +29,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 import smtplib
 from email.message import EmailMessage
 
-# --- EMAIL SERVICE (SMTP via AWS SES Port 587 - Tested & Working) ---
-SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com"
-SMTP_PORT = 587
-SMTP_USER = "AKIARVESOK3RUPXF2W4R"
-SMTP_PASS = os.getenv("SMTP_PASSWORD", "BJSdulZaj5usZ8ltjyJz+s4SRjzKrWkxSVqmsjlwyZRh")
-FROM_EMAIL = "dev.peerreview@intelliticks.com"
+# --- EMAIL SERVICE (SendGrid HTTP API - Works on Render) ---
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+FROM_EMAIL = "goldy.jagga@quickreply.ai"  # Verified sender in SendGrid
 
 def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
-    """Sends review notification via AWS SES SMTP Port 587 + STARTTLS."""
+    """Sends review notification via SendGrid HTTP API (works on Render)."""
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, To, Cc
+
     to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
     subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
@@ -53,25 +53,23 @@ You have successfully submitted performance reviews for '{project.name}'.
 Improvement Feedback: {reviews[0].improvement_feedback if reviews else 'N/A'}
 Delay Notes: {reviews[0].delay_reason if reviews else 'N/A'}
 
-This is an automated notification.
+This is an automated notification from the 360 Peer Review System.
 """
-    msg = EmailMessage()
-    msg.set_content(email_body)
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to_email
-    msg["Cc"] = ", ".join(cc_emails)
+    message = Mail(
+        from_email=FROM_EMAIL,
+        to_emails=to_email,
+        subject=subject,
+        plain_text_content=email_body
+    )
+    for cc in cc_emails:
+        message.add_cc(cc)
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        print(f"[EMAIL] Sent successfully to {to_email}")
-    except smtplib.SMTPAuthenticationError:
-        print("[EMAIL] Auth Failed: Check SMTP_PASSWORD env var on Render.")
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        print(f"[EMAIL] Sent via SendGrid. Status: {response.status_code}")
     except Exception as e:
-        print(f"[EMAIL] Error: {e}")
+        print(f"[EMAIL] SendGrid Error: {e}")
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
     """

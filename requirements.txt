@@ -7,3 +7,4 @@ python-multipart
 itsdangerous
 aiofiles
 psycopg2-binary
+sendgrid
