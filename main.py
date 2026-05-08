@@ -68,11 +68,12 @@ Delay Notes: {reviews[0].delay_reason or 'N/A'}
 This is an automated notification from the 360 Peer Review System.
 """
     message = Mail(
-        from_email=FROM_EMAIL,
+        from_email=("360 Peer Review System", FROM_EMAIL),
         to_emails=to_email,
         subject=subject,
         plain_text_content=email_body
     )
+    message.reply_to = FROM_EMAIL
     for cc in cc_emails:
         message.add_cc(cc)
 
