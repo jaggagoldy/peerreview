@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, func
-from models import Project, Review, User, DeletedProject, engine, create_db_and_tables
+from models import Project, Review, User, DeletedProject, Notification, engine, create_db_and_tables
 from datetime import date
 import hashlib
 import json
@@ -89,10 +89,17 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
     background_tasks.add_task(send_review_notification_email_sync, user, project, reviews)
 
 # Master Data
-DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
+DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil Shah", "Aditya Singh", "Atul Singh", "Hari Sachdeva", "Hridyesh Sharma", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Himanshu Gupta", "Hridayesh Gupta"] # Removed Prateek Sharma, added Himanshu & Hridayesh
 TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
+
+MEMBER_NAME_ALIASES = {
+    "Rushil": "Rushil Shah",
+    "Aditya": "Aditya Singh",
+    "Atul": "Atul Singh",
+    "Hridyesh": "Hridyesh Sharma",
+}
 
 USER_EMAILS = [
     {"email": "himanshu.gupta@quickreply.ai", "name": "Himanshu Gupta", "role": "CEO", "admin": True},
@@ -272,11 +279,25 @@ async def reset_own_password(
 def is_real_member(name: Optional[str]) -> bool:
     return bool(name and name.strip() and name.strip().upper() not in {"N/A", "NA", "NONE"})
 
+def normalize_member_name(name: Optional[str]) -> str:
+    if not is_real_member(name):
+        return ""
+    cleaned = name.strip()
+    return MEMBER_NAME_ALIASES.get(cleaned, cleaned)
+
+def normalize_member_list(names: Optional[List[str]]) -> List[str]:
+    normalized = []
+    for name in names or []:
+        member_name = normalize_member_name(name)
+        if member_name and member_name not in normalized:
+            normalized.append(member_name)
+    return normalized
+
 def get_project_members(p: Project) -> List[str]:
     devs = json.loads(p.dev_team) if p.dev_team else []
     qas = json.loads(p.qa_team) if p.qa_team else []
     optional_members = [p.product_owner, getattr(p, 'tech_lead_name', '')]
-    return [m for m in (devs + qas + optional_members) if is_real_member(m)]
+    return normalize_member_list(devs + qas + optional_members)
 
 def get_project_stats(p: Project, all_reviews: List[Review]):
     """
@@ -426,8 +447,12 @@ async def create_project(
         return HTMLResponse("Unauthorized", status_code=403)
     
     # Robust Team/POC handling
-    dev_team = dev_team or []
-    qa_team = qa_team or []
+    dev_team = normalize_member_list(dev_team)
+    qa_team = normalize_member_list(qa_team)
+    product = normalize_member_name(product)
+    tech_lead_name = normalize_member_name(tech_lead_name)
+    dev_poc = normalize_member_name(dev_poc)
+    qa_poc = normalize_member_name(qa_poc)
     
     # Smart POC Logic: If single person in team, they are the POC
     if len(dev_team) == 1: dev_poc = dev_team[0]
@@ -453,10 +478,10 @@ async def create_project(
         release_date=date.fromisoformat(release_date),
         dev_team=json.dumps(dev_team),
         qa_team=json.dumps(qa_team) if qa_team else "[]",
-        product_owner=product.strip() if product else "",
+        product_owner=product,
         dev_poc=dev_poc,
         qa_poc=qa_poc if qa_poc else "N/A",
-        tech_lead_name=tech_lead_name.strip() if tech_lead_name else "",
+        tech_lead_name=tech_lead_name,
         project_size=project_size,
         delivery_status=delivery_status
     )
@@ -528,10 +553,10 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
     if project_id:
         selected_project = session.get(Project, project_id)
         if selected_project:
-            devs = json.loads(selected_project.dev_team)
-            qas = json.loads(selected_project.qa_team)
-            product = selected_project.product_owner
-            tech_lead_name = getattr(selected_project, 'tech_lead_name', '')
+            devs = normalize_member_list(json.loads(selected_project.dev_team))
+            qas = normalize_member_list(json.loads(selected_project.qa_team))
+            product = normalize_member_name(selected_project.product_owner)
+            tech_lead_name = normalize_member_name(getattr(selected_project, 'tech_lead_name', ''))
             
     is_tl = current_user.role == "Tech Lead" or current_user.is_admin or (selected_project and current_user.name == getattr(selected_project, 'tech_lead_name', ''))
     all_users = session.exec(select(User)).all()
@@ -582,8 +607,8 @@ async def submit_reviews(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # SECURITY CHECK: Is user part of this project? (STRICT: Admin status doesn't grant review access)
-    devs = json.loads(project.dev_team)
-    qas = json.loads(project.qa_team)
+    devs = normalize_member_list(json.loads(project.dev_team))
+    qas = normalize_member_list(json.loads(project.qa_team))
     all_members = get_project_members(project)
     
     if current_user.name not in all_members:
@@ -616,10 +641,12 @@ async def submit_reviews(
     for person_name, scores in ratings_raw.items():
         # Validate rated person is in project
         role = ""
-        if person_name == project.tech_lead_name: role = "Tech Lead"
+        project_tech_lead = normalize_member_name(project.tech_lead_name)
+        project_product = normalize_member_name(project.product_owner)
+        if person_name == project_tech_lead: role = "Tech Lead"
         elif person_name in devs: role = "Dev"
         elif person_name in qas: role = "QA"
-        elif person_name == project.product_owner: role = "Product"
+        elif person_name == project_product: role = "Product"
         
         if not role: continue
         
