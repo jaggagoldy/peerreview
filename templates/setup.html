@@ -136,22 +136,116 @@
     <h2>Existing Projects</h2>
     <div style="display: grid; gap: 1rem;">
         {% for p in projects %}
-        <div
-            style="padding: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h3 style="margin-bottom: 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
-                    {{ p.name }}
-                    <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: {{ 'rgba(34,197,94,0.2)' if p.delivery_status == 'On Time' else 'rgba(239,68,68,0.2)' }}; color: {{ '#4ade80' if p.delivery_status == 'On Time' else '#f87171' }}; border: 1px solid currentColor;">
-                        {{ p.delivery_status }}
-                    </span>
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Release:
-                    {{ p.release_date }}</p>
+        <div id="project-{{ p.id }}"
+            style="padding: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                <div>
+                    <h3 style="margin-bottom: 4px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                        {{ p.name }}
+                        <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: {{ 'rgba(34,197,94,0.2)' if p.delivery_status == 'On Time' else 'rgba(239,68,68,0.2)' }}; color: {{ '#4ade80' if p.delivery_status == 'On Time' else '#f87171' }}; border: 1px solid currentColor;">
+                            {{ p.delivery_status }}
+                        </span>
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Score:
+                        {{ p.project_size }} | Release: {{ p.release_date }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="color: var(--primary); font-size: 0.9rem; font-weight: 600;">POC: {{ p.dev_poc }} / {{
+                        p.qa_poc }}</div>
+                </div>
             </div>
-            <div style="text-align: right;">
-                <div style="color: var(--primary); font-size: 0.9rem; font-weight: 600;">POC: {{ p.dev_poc }} / {{
-                    p.qa_poc }}</div>
+
+            {% if perms_is_superadmin %}
+            <details style="margin-top: 1rem;">
+                <summary class="btn" style="display: inline-block; padding: 0.55rem 1rem; font-size: 0.78rem; cursor: pointer;">Edit Project</summary>
+            <div style="margin-top: 1rem;">
+                <form action="/admin/projects/update" method="post"
+                    style="border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                    <input type="hidden" name="project_id" value="{{ p.id }}">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                        <div class="form-group">
+                            <label>Project Name</label>
+                            <input type="text" name="name" value="{{ p.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Sprint / Release</label>
+                            <input type="text" name="sprint" value="{{ p.sprint }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Project Score</label>
+                            <input type="number" name="project_size" value="{{ p.project_size }}" min="1" max="20" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Delivery Status</label>
+                            <select name="delivery_status">
+                                {% for status in ['On Time', 'Slightly Delayed', 'Delayed', 'Critically Delayed'] %}
+                                <option value="{{ status }}" {% if p.delivery_status == status %}selected{% endif %}>{{ status }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Asana / Task Link</label>
+                        <input type="url" name="asana_link" value="{{ p.asana_link or '' }}">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1rem;">
+                        <div class="form-group">
+                            <label>Design Date</label>
+                            <input type="date" name="design_date" value="{{ p.design_date or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label>Dev Start</label>
+                            <input type="date" name="dev_start" value="{{ p.dev_start or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label>QA Ready</label>
+                            <input type="date" name="qa_start" value="{{ p.qa_start or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label>QA End</label>
+                            <input type="date" name="qa_end" value="{{ p.qa_end or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label>Release Date</label>
+                            <input type="date" name="release_date" value="{{ p.release_date }}" required>
+                        </div>
+                    </div>
+
+                    <div style="margin: 0.5rem 0 1rem; padding: 0.9rem; background: rgba(255,255,255,0.03); border-radius: 8px; color: var(--text-muted); font-size: 0.82rem;">
+                        Stakeholders fixed: Dev {{ p.dev_team | from_json | join(', ') }} | QA {{ p.qa_team | from_json | join(', ') }}
+                        {% if p.product_owner %} | Product {{ p.product_owner }}{% endif %}
+                        {% if p.tech_lead_name %} | Tech Lead {{ p.tech_lead_name }}{% endif %}
+                    </div>
+
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.8rem 1.8rem;">Save Changes</button>
+                    </div>
+                </form>
+
+                {% set history = histories_by_project.get(p.id, []) %}
+                <div style="margin-top: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                    <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin-bottom: 0.6rem;">CHANGE HISTORY</div>
+                    {% if history %}
+                    <div style="display: grid; gap: 0.7rem;">
+                        {% for h in history[:5] %}
+                        {% set changes = h.changes_json | from_json %}
+                        <div style="font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.12); border-radius: 8px; padding: 0.75rem;">
+                            <div style="color: #fff; font-weight: 700; margin-bottom: 0.35rem;">{{ h.edited_by }} on {{ h.edited_at.strftime('%d %b %Y, %H:%M') }}</div>
+                            {% for key, change in changes.items() %}
+                            <div>{{ change.label }}: <span style="color:#fca5a5;">{{ change.old or 'blank' }}</span> -&gt; <span style="color:#86efac;">{{ change.new or 'blank' }}</span></div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">No edits yet.</div>
+                    {% endif %}
+                </div>
             </div>
+            </details>
+            {% endif %}
         </div>
         {% endfor %}
         {% if not projects %}

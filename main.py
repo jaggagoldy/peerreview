@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, func
-from models import Project, Review, User, DeletedProject, Notification, engine, create_db_and_tables
+from models import Project, Review, User, DeletedProject, Notification, ProjectEditHistory, engine, create_db_and_tables
 from datetime import date
 import hashlib
 import json
@@ -320,11 +320,30 @@ def normalize_member_list(names: Optional[List[str]]) -> List[str]:
             normalized.append(member_name)
     return normalized
 
+def parse_dt(dt_str: Optional[str]):
+    if not dt_str:
+        return None
+    try:
+        return date.fromisoformat(dt_str)
+    except Exception:
+        return None
+
 def get_project_members(p: Project) -> List[str]:
     devs = json.loads(p.dev_team) if p.dev_team else []
     qas = json.loads(p.qa_team) if p.qa_team else []
     optional_members = [p.product_owner, getattr(p, 'tech_lead_name', '')]
     return normalize_member_list(devs + qas + optional_members)
+
+def notify_project_members(session: Session, project: Project, title: str, message: str):
+    for member_name in set(get_project_members(project)):
+        user = session.exec(select(User).where(User.name == member_name)).first()
+        if user:
+            session.add(Notification(
+                user_id=user.id,
+                title=title,
+                message=message,
+                link=f"/dashboard?project_id={project.id}"
+            ))
 
 def get_project_stats(p: Project, all_reviews: List[Review]):
     """
@@ -439,14 +458,20 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
     if "setup" not in perms.get("tabs", []):
         return HTMLResponse("Unauthorized", status_code=403)
     
-    projects = session.exec(select(Project)).all()
+    projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
+    histories = session.exec(select(ProjectEditHistory).order_by(ProjectEditHistory.edited_at.desc())).all()
+    histories_by_project = {}
+    for entry in histories:
+        histories_by_project.setdefault(entry.project_id, []).append(entry)
     return templates.TemplateResponse(request=request, name="setup.html", context={
         "request": request,
         "projects": projects,
+        "histories_by_project": histories_by_project,
         "dev_list": DEV_TEAM_LIST,
         "qa_list": QA_TEAM_LIST,
         "product_list": PRODUCT_LIST,
-        "tech_lead_list": TECH_LEAD_LIST
+        "tech_lead_list": TECH_LEAD_LIST,
+        "perms_is_superadmin": perms.get("is_superadmin", False)
     })
 
 @app.post("/setup")
@@ -489,11 +514,6 @@ async def create_project(
     if not dev_poc: dev_poc = "N/A"
     if not qa_poc: qa_poc = "N/A"
 
-    def parse_dt(dt_str):
-        if not dt_str: return None
-        try: return date.fromisoformat(dt_str)
-        except: return None
-
     project = Project(
         name=name,
         sprint=sprint,
@@ -516,24 +536,96 @@ async def create_project(
     session.commit()
     session.refresh(project)
 
-    # CREATE NOTIFICATIONS for assigned team
-    all_team = dev_team + qa_team
-    if tech_lead_name: all_team.append(tech_lead_name)
-    if product: all_team.append(product)
-    
-    for member_name in set(all_team):
-        mu = session.exec(select(User).where(User.name == member_name)).first()
-        if mu:
-            notif = Notification(
-                user_id=mu.id,
-                title="New Project Assigned",
-                message=f"You have been assigned to project: {name}",
-                link=f"/"
-            )
-            session.add(notif)
+    notify_project_members(
+        session,
+        project,
+        "New Project Assigned",
+        f"You have been assigned to project: {name}"
+    )
     session.commit()
 
     return RedirectResponse(url="/", status_code=303)
+
+@app.post("/admin/projects/update")
+async def update_project(
+    project_id: int = Form(...),
+    name: str = Form(...),
+    sprint: str = Form(...),
+    asana_link: Optional[str] = Form(None),
+    design_date: Optional[str] = Form(None),
+    dev_start: Optional[str] = Form(None),
+    qa_start: Optional[str] = Form(None),
+    qa_end: Optional[str] = Form(None),
+    release_date: str = Form(...),
+    project_size: int = Form(...),
+    delivery_status: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    if not current_user:
+        return RedirectResponse(url="/login")
+    perms = json.loads(current_user.permissions)
+    if not perms.get("is_superadmin"):
+        return HTMLResponse("Unauthorized", status_code=403)
+
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    editable_fields = {
+        "name": name.strip(),
+        "sprint": sprint.strip(),
+        "asana_link": asana_link.strip() if asana_link else None,
+        "design_date": parse_dt(design_date),
+        "dev_start": parse_dt(dev_start),
+        "qa_start": parse_dt(qa_start),
+        "qa_end": parse_dt(qa_end),
+        "release_date": date.fromisoformat(release_date),
+        "project_size": project_size,
+        "delivery_status": delivery_status,
+    }
+
+    labels = {
+        "name": "Project Name",
+        "sprint": "Sprint",
+        "asana_link": "Project Link",
+        "design_date": "Design Date",
+        "dev_start": "Dev Start",
+        "qa_start": "QA Ready",
+        "qa_end": "QA End",
+        "release_date": "Release Date",
+        "project_size": "Project Score",
+        "delivery_status": "Delivery Status",
+    }
+    changes = {}
+    for field, new_value in editable_fields.items():
+        old_value = getattr(project, field)
+        if old_value != new_value:
+            changes[field] = {
+                "label": labels[field],
+                "old": str(old_value) if old_value is not None else "",
+                "new": str(new_value) if new_value is not None else "",
+            }
+            setattr(project, field, new_value)
+
+    if changes:
+        session.add(project)
+        history = ProjectEditHistory(
+            project_id=project.id,
+            edited_by=current_user.name,
+            changes_json=json.dumps(changes)
+        )
+        session.add(history)
+        changed_labels = ", ".join(change["label"] for change in changes.values())
+        notify_project_members(
+            session,
+            project,
+            "Project Updated",
+            f"{project.name} was updated by {current_user.name}: {changed_labels}"
+        )
+        session.commit()
+
+    return RedirectResponse(url="/setup", status_code=303)
 
 @app.get("/review", response_class=HTMLResponse)
 async def review_form(request: Request, project_id: Optional[int] = None, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):

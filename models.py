@@ -1,7 +1,7 @@
 import os
 from sqlmodel import SQLModel, Field, create_engine, Session, select
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 import json
 
 class User(SQLModel, table=True):
@@ -77,6 +77,13 @@ class Notification(SQLModel, table=True):
     link: Optional[str] = None
     is_read: bool = Field(default=False)
     created_at: date = Field(default_factory=date.today)
+
+class ProjectEditHistory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(index=True)
+    edited_by: str
+    edited_at: datetime = Field(default_factory=datetime.utcnow)
+    changes_json: str
 
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/database.db")
