@@ -265,18 +265,19 @@
                             <div style="font-size: 0.78rem; color: #94a3b8; line-height: 1.4;">${n.message}</div>
                             <div style="font-size: 0.65rem; color: #64748b; margin-top: 6px;">${n.created_at}</div>
                         `;
-                        item.onclick = () => {
+                        item.onclick = async () => {
+                            await markRead(n.id, false);
                             if (n.link) window.location.href = n.link;
-                            markRead(n.id);
+                            else fetchNotifs();
                         };
                         list.appendChild(item);
                     });
                 } catch (e) { console.error("Notif error", e); }
             }
 
-            async function markRead(id) {
+            async function markRead(id, refresh = true) {
                 await fetch(`/api/notifications/mark-read/${id}`, { method: 'POST' });
-                fetchNotifs();
+                if (refresh) fetchNotifs();
             }
 
             async function markAllRead() {

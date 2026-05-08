@@ -33,42 +33,47 @@ from email.message import EmailMessage
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 FROM_EMAIL = "goldy.jagga@quickreply.ai"  # Verified sender in SendGrid
 
-def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
+def send_review_notification_email_sync(
+    to_email: str,
+    user_name: str,
+    project_name: str,
+    project_sprint: str,
+    review_rows: List[dict],
+):
     """Sends review notification via SendGrid HTTP API (works on Render)."""
-    print(f"[EMAIL] Attempting to send to {user.email} for project {project.name}")
+    print(f"[EMAIL] Attempting to send to {to_email} for project {project_name}")
     
     if not SENDGRID_API_KEY:
         print("[EMAIL] FAILED: SENDGRID_API_KEY is not set in environment variables!")
         return
     
-    if not reviews:
+    if not review_rows:
         print("[EMAIL] FAILED: No reviews to include in email. Skipping.")
         return
 
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail
+    from sendgrid.helpers.mail import Mail, Email
 
-    to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
     # Avoid CC-ing the reviewer themselves
     cc_emails = [e for e in cc_emails if e != to_email]
-    subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
+    subject = f"Performance Review Submitted: {project_name} ({project_sprint})"
 
     breakdown_text = ""
-    for r in reviews:
-        breakdown_text += f"\n---\nResource: {r.rated_person} ({r.rated_role})\nRating: {r.score_1}/5\nRemarks: {r.remarks or 'N/A'}\n"
+    for r in review_rows:
+        breakdown_text += f"\n---\nResource: {r['rated_person']} ({r['rated_role']})\nRating: {r['score_1']}/5\nRemarks: {r['remarks'] or 'N/A'}\n"
 
-    email_body = f"""Hello {user.name},
+    email_body = f"""Hello {user_name},
 
-You have successfully submitted performance reviews for '{project.name}'.
+You have successfully submitted performance reviews for '{project_name}'.
 {breakdown_text}
-Improvement Feedback: {reviews[0].improvement_feedback or 'N/A'}
-Delay Notes: {reviews[0].delay_reason or 'N/A'}
+Improvement Feedback: {review_rows[0]['improvement_feedback'] or 'N/A'}
+Delay Notes: {review_rows[0]['delay_reason'] or 'N/A'}
 
 This is an automated notification from the 360 Peer Review System.
 """
     message = Mail(
-        from_email=("360 Peer Review System", FROM_EMAIL),
+        from_email=Email(FROM_EMAIL, "360 Peer Review System"),
         to_emails=to_email,
         subject=subject,
         plain_text_content=email_body
@@ -86,7 +91,25 @@ This is an automated notification from the 360 Peer Review System.
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
     """Triggers email sending in the background."""
-    background_tasks.add_task(send_review_notification_email_sync, user, project, reviews)
+    review_rows = [
+        {
+            "rated_person": r.rated_person,
+            "rated_role": r.rated_role,
+            "score_1": r.score_1,
+            "remarks": r.remarks,
+            "improvement_feedback": r.improvement_feedback,
+            "delay_reason": r.delay_reason,
+        }
+        for r in reviews
+    ]
+    background_tasks.add_task(
+        send_review_notification_email_sync,
+        user.email,
+        user.name,
+        project.name,
+        project.sprint,
+        review_rows,
+    )
 
 # Master Data
 DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil Shah", "Aditya Singh", "Atul Singh", "Hari Sachdeva", "Hridyesh Sharma", "Manik Gandhi", "Niteesh Mahato"]
@@ -855,6 +878,14 @@ async def dashboard(
                 project_scores[r.project_id] = []
             project_scores[r.project_id].append(r.score_1)
 
+        profile_impact_points = 0
+        for p_id, scores in project_scores.items():
+            proj = project_map.get(p_id)
+            if proj and scores:
+                p_size = getattr(proj, 'project_size', 2)
+                if p_size is None: p_size = 2
+                profile_impact_points += (sum(scores) / len(scores)) * p_size
+
         trend = []
         for p_id in sorted(project_scores.keys()):
             pj = session.get(Project, p_id)
@@ -903,7 +934,7 @@ async def dashboard(
             "live_projects": len([p for p in involved_projects if p["is_live"]]),
             "poc_count": len(poc_projects),
             "score_avg": u_s1,
-            "impact_points": round(total_impact, 1),
+            "impact_points": round(profile_impact_points, 1),
             "reviews": user_reviews,
             "trend": trend,
             "involved_projects": involved_projects,
