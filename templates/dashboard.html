@@ -663,8 +663,8 @@ function filterRankingsTable() {
             label: {{ (p.name + " (" + p.sprint + ")") | tojson }}, 
             devs: {{ p.dev_team | from_json | tojson }}, 
             qas: {{ p.qa_team | from_json | tojson }}, 
-            po: {{ p.product_owner | tojson }}, 
-            tl: {{ p.tech_lead_name | tojson }} 
+            po: {{ (p.product_owner if p.product_owner and p.product_owner not in ['N/A', 'NA', 'None'] else '') | tojson }},
+            tl: {{ (p.tech_lead_name if p.tech_lead_name and p.tech_lead_name not in ['N/A', 'NA', 'None'] else '') | tojson }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
     ];

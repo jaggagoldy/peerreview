@@ -92,7 +92,7 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
 DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Himanshu Gupta", "Hridayesh Gupta"] # Removed Prateek Sharma, added Himanshu & Hridayesh
-TECH_LEAD_LIST = ["Hridayesh Gupta"]
+TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
 
 USER_EMAILS = [
     {"email": "himanshu.gupta@quickreply.ai", "name": "Himanshu Gupta", "role": "CEO", "admin": True},
@@ -269,13 +269,20 @@ async def reset_own_password(
     session.commit()
     return RedirectResponse(url="/?profile_success=Password+updated+successfully", status_code=303)
 
+def is_real_member(name: Optional[str]) -> bool:
+    return bool(name and name.strip() and name.strip().upper() not in {"N/A", "NA", "NONE"})
+
+def get_project_members(p: Project) -> List[str]:
+    devs = json.loads(p.dev_team) if p.dev_team else []
+    qas = json.loads(p.qa_team) if p.qa_team else []
+    optional_members = [p.product_owner, getattr(p, 'tech_lead_name', '')]
+    return [m for m in (devs + qas + optional_members) if is_real_member(m)]
+
 def get_project_stats(p: Project, all_reviews: List[Review]):
     """
     Helper to calculate membership and live status for a project.
     """
-    devs = json.loads(p.dev_team) if p.dev_team else []
-    qas = json.loads(p.qa_team) if p.qa_team else []
-    expected_reviewers = set([m for m in (devs + qas + [p.product_owner, getattr(p, 'tech_lead_name', '')]) if m and m != "N/A"])
+    expected_reviewers = set(get_project_members(p))
     
     submitted_reviewers = set([r.reviewer_name for r in all_reviews if r.project_id == p.id])
     
@@ -310,10 +317,7 @@ async def index(
     else:
         user_projects = [
             p for p in all_projects
-            if current_user.name in json.loads(p.dev_team)
-            or current_user.name in json.loads(p.qa_team)
-            or current_user.name == p.product_owner
-            or getattr(p, 'tech_lead_name', '') == current_user.name
+            if current_user.name in get_project_members(p)
         ]
 
     # Build project-level status & stats
@@ -449,10 +453,10 @@ async def create_project(
         release_date=date.fromisoformat(release_date),
         dev_team=json.dumps(dev_team),
         qa_team=json.dumps(qa_team) if qa_team else "[]",
-        product_owner=product if product else "N/A",
+        product_owner=product.strip() if product else "",
         dev_poc=dev_poc,
         qa_poc=qa_poc if qa_poc else "N/A",
-        tech_lead_name=tech_lead_name if tech_lead_name else "N/A",
+        tech_lead_name=tech_lead_name.strip() if tech_lead_name else "",
         project_size=project_size,
         delivery_status=delivery_status
     )
@@ -461,7 +465,8 @@ async def create_project(
     session.refresh(project)
 
     # CREATE NOTIFICATIONS for assigned team
-    all_team = dev_team + qa_team + [tech_lead_name]
+    all_team = dev_team + qa_team
+    if tech_lead_name: all_team.append(tech_lead_name)
     if product: all_team.append(product)
     
     for member_name in set(all_team):
@@ -491,7 +496,7 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
     user_projects = []
     
     for p in all_projects:
-        team = json.loads(p.dev_team) + json.loads(p.qa_team) + [p.tech_lead_name, p.product_owner]
+        team = get_project_members(p)
         if current_user.name in team:
             user_projects.append(p)
 
@@ -499,7 +504,7 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
     if project_id:
         selected_project = session.get(Project, project_id)
         if selected_project:
-            team = json.loads(selected_project.dev_team) + json.loads(selected_project.qa_team) + [selected_project.tech_lead_name, selected_project.product_owner]
+            team = get_project_members(selected_project)
             if current_user.name not in team:
                 return HTMLResponse("Unauthorized: You are not involved in this project and cannot submit reviews for it.", status_code=403)
     
@@ -541,11 +546,11 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
     for q in qas:
         if q != current_user.name and user_roles.get(q) not in EXCLUDED_FROM_RATING:
             all_members.append((q, "QA"))
-    if product and product != current_user.name and user_roles.get(product) not in EXCLUDED_FROM_RATING:
+    if is_real_member(product) and product != current_user.name and user_roles.get(product) not in EXCLUDED_FROM_RATING:
         all_members.append((product, "Product"))
     
     # Add Tech Lead as a rateable person
-    if tech_lead_name and tech_lead_name != current_user.name and user_roles.get(tech_lead_name) not in EXCLUDED_FROM_RATING:
+    if is_real_member(tech_lead_name) and tech_lead_name != current_user.name and user_roles.get(tech_lead_name) not in EXCLUDED_FROM_RATING:
         all_members.append((tech_lead_name, "Tech Lead"))
 
     return templates.TemplateResponse(request=request, name="review.html", context={
@@ -579,7 +584,7 @@ async def submit_reviews(
     # SECURITY CHECK: Is user part of this project? (STRICT: Admin status doesn't grant review access)
     devs = json.loads(project.dev_team)
     qas = json.loads(project.qa_team)
-    all_members = devs + qas + [project.product_owner, getattr(project, 'tech_lead_name', '')]
+    all_members = get_project_members(project)
     
     if current_user.name not in all_members:
         raise HTTPException(status_code=403, detail="You are not authorized to review this project as you are not a team member.")
@@ -689,10 +694,7 @@ async def dashboard(
     else:
         visible_projects = [
             p for p in all_projects
-            if current_user.name in json.loads(p.dev_team)
-            or current_user.name in json.loads(p.qa_team)
-            or current_user.name == p.product_owner
-            or getattr(p, 'tech_lead_name', '') == current_user.name
+            if current_user.name in get_project_members(p)
         ]
 
     # Filter base reviews: non-admins only see reviews from live projects
@@ -789,7 +791,7 @@ async def dashboard(
                 "sprint": p_obj.sprint,
                 "dev_poc": p_obj.dev_poc,
                 "qa_poc": p_obj.qa_poc,
-                "tech_lead_name": getattr(p_obj, 'tech_lead_name', ''),
+                "tech_lead_name": getattr(p_obj, 'tech_lead_name', '') if is_real_member(getattr(p_obj, 'tech_lead_name', '')) else '',
                 "asana_link": p_obj.asana_link,
                 "design_date": p_obj.design_date,
                 "dev_start": p_obj.dev_start,
@@ -852,7 +854,7 @@ async def dashboard(
         for p in all_projects:
             is_involved = False
             try:
-                if single_user in json.loads(p.dev_team) or single_user in json.loads(p.qa_team) or p.product_owner == single_user or getattr(p, 'tech_lead_name', '') == single_user:
+                if single_user in get_project_members(p):
                     is_involved = True
             except: pass
             
@@ -889,12 +891,11 @@ async def dashboard(
 
     user_projects_map = {}
     for p in all_projects:
-        members = json.loads(p.dev_team) + json.loads(p.qa_team) + [p.product_owner, getattr(p, 'tech_lead_name', '')]
+        members = get_project_members(p)
         for m in members:
-            if m:
-                user_projects_map.setdefault(m, [])
-                if p.id not in user_projects_map[m]:
-                    user_projects_map[m].append(p.id)
+            user_projects_map.setdefault(m, [])
+            if p.id not in user_projects_map[m]:
+                user_projects_map[m].append(p.id)
 
     role_users_map = {}
     for u in all_users:

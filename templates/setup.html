@@ -85,7 +85,7 @@
             <div class="form-group">
                 <label>Product Owner (Optional)</label>
                 <select name="product">
-                    <option value="">None / N/A</option>
+                    <option value="">None</option>
                     {% for p in product_list %}
                     <option value="{{ p }}">{{ p }}</option>
                     {% endfor %}
@@ -95,7 +95,7 @@
             <div class="form-group">
                 <label>Tech Lead (Optional)</label>
                 <select name="tech_lead_name">
-                    <option value="">None / N/A</option>
+                    <option value="">None</option>
                     {% for tl in tech_lead_list %}
                     <option value="{{ tl }}">{{ tl }}</option>
                     {% endfor %}

@@ -102,7 +102,7 @@
                     {% if item.project.qa_poc != 'N/A' %}
                     <div><span style="opacity: 0.5;">QA POC:</span><br><span style="color: #fff;">{{ item.project.qa_poc }}</span></div>
                     {% endif %}
-                    {% if item.project.tech_lead_name != 'N/A' %}
+                    {% if item.project.tech_lead_name and item.project.tech_lead_name not in ['N/A', 'NA', 'None'] %}
                     <div><span style="opacity: 0.5;">Tech Lead:</span><br><span style="color: #fff;">{{ item.project.tech_lead_name }}</span></div>
                     {% endif %}
                 </div>
