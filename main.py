@@ -35,11 +35,23 @@ FROM_EMAIL = "goldy.jagga@quickreply.ai"  # Verified sender in SendGrid
 
 def send_review_notification_email_sync(user: User, project: Project, reviews: List[Review]):
     """Sends review notification via SendGrid HTTP API (works on Render)."""
+    print(f"[EMAIL] Attempting to send to {user.email} for project {project.name}")
+    
+    if not SENDGRID_API_KEY:
+        print("[EMAIL] FAILED: SENDGRID_API_KEY is not set in environment variables!")
+        return
+    
+    if not reviews:
+        print("[EMAIL] FAILED: No reviews to include in email. Skipping.")
+        return
+
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, To, Cc
+    from sendgrid.helpers.mail import Mail
 
     to_email = user.email
     cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+    # Avoid CC-ing the reviewer themselves
+    cc_emails = [e for e in cc_emails if e != to_email]
     subject = f"Performance Review Submitted: {project.name} ({project.sprint})"
 
     breakdown_text = ""
@@ -50,8 +62,8 @@ def send_review_notification_email_sync(user: User, project: Project, reviews: L
 
 You have successfully submitted performance reviews for '{project.name}'.
 {breakdown_text}
-Improvement Feedback: {reviews[0].improvement_feedback if reviews else 'N/A'}
-Delay Notes: {reviews[0].delay_reason if reviews else 'N/A'}
+Improvement Feedback: {reviews[0].improvement_feedback or 'N/A'}
+Delay Notes: {reviews[0].delay_reason or 'N/A'}
 
 This is an automated notification from the 360 Peer Review System.
 """
@@ -67,14 +79,12 @@ This is an automated notification from the 360 Peer Review System.
     try:
         sg = SendGridAPIClient(SENDGRID_API_KEY)
         response = sg.send(message)
-        print(f"[EMAIL] Sent via SendGrid. Status: {response.status_code}")
+        print(f"[EMAIL] SUCCESS! Sent to {to_email}. Status: {response.status_code}")
     except Exception as e:
         print(f"[EMAIL] SendGrid Error: {e}")
 
 def send_review_notification_email(user: User, project: Project, reviews: List[Review], background_tasks: BackgroundTasks):
-    """
-    Triggers email sending in the background.
-    """
+    """Triggers email sending in the background."""
     background_tasks.add_task(send_review_notification_email_sync, user, project, reviews)
 
 # Master Data
