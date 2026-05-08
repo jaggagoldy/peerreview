@@ -105,13 +105,13 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
 DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Himanshu Gupta", "Hridayesh Gupta"] # Removed Prateek Sharma, added Himanshu & Hridayesh
-TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
+TECH_LEAD_LIST = ["Hridayesh Gupta"]
 
 USER_EMAILS = [
     {"email": "himanshu.gupta@quickreply.ai", "name": "Himanshu Gupta", "role": "CEO", "admin": True},
     {"email": "hridayesh.gupta@quickreply.ai", "name": "Hridayesh Gupta", "role": "CTO", "admin": True},
     {"email": "goldy.jagga@quickreply.ai", "name": "Goldy Jagga", "role": "Scrum Master", "admin": True},
-    {"email": "niteesh.mahato@quickreply.ai", "name": "Niteesh Mahato", "role": "Tech Lead", "admin": True},
+    {"email": "niteesh.mahato@quickreply.ai", "name": "Niteesh Mahato", "role": "Dev", "admin": False},
     {"email": "prateek.pandey@quickreply.ai", "name": "Prateek Pandey", "role": "QA", "admin": False},
     {"email": "hridyesh.sharma@quickreply.ai", "name": "Hridyesh Sharma", "role": "Dev", "admin": False},
     {"email": "abhinav.kapoor@quickreply.ai", "name": "Abhinav Kapoor", "role": "Product", "admin": False},
@@ -541,7 +541,7 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
             product = selected_project.product_owner
             tech_lead_name = getattr(selected_project, 'tech_lead_name', '')
             
-    is_tl = current_user.role == "Tech Lead" or current_user.is_admin
+    is_tl = current_user.role == "Tech Lead" or current_user.is_admin or (selected_project and current_user.name == getattr(selected_project, 'tech_lead_name', ''))
     all_users = session.exec(select(User)).all()
     user_roles = {u.name: u.role for u in all_users}
     
