@@ -168,13 +168,14 @@
                 <nav class="sidebar-nav">
                     {% set perms = request.session.get('permissions', {}) %}
                     {% set tabs = perms.get('tabs', []) %}
+                    {% set is_superadmin = perms.get('is_superadmin') %}
 
                     {% if 'home' in tabs %}<a href="/" id="nav-home">Home</a>{% endif %}
-                    {% if 'setup' in tabs %}<a href="/setup" id="nav-setup">Setup</a>{% endif %}
+                    {% if 'setup' in tabs or is_superadmin %}<a href="/setup" id="nav-setup">Setup</a>{% endif %}
                     {% if 'review' in tabs %}<a href="/review" id="nav-review">Review</a>{% endif %}
                     {% if 'dashboard' in tabs %}<a href="/dashboard" id="nav-dash" class="btn-dashboard">Dashboard</a>{% endif %}
 
-                    {% if perms.get('is_superadmin') %}
+                    {% if is_superadmin %}
                     <a href="/admin/users" id="nav-admin" style="color: var(--accent);">User Access</a>
                     <a href="/admin/recycle-bin" id="nav-recycle" class="recycle-nav">🗑️ Recycle Bin</a>
                     {% endif %}

@@ -150,6 +150,34 @@ USER_EMAILS = [
 ]
 
 ADMIN_EMAILS = ["himanshu.gupta@quickreply.ai", "hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+PASSWORD_ROTATION_VERSION = "2026-05-08-team-random-reset"
+EXCLUDED_PASSWORD_RESET_ROLES = {"CEO", "CTO", "Scrum Master"}
+TEMP_PASSWORD_HASHES = {
+    "niteesh.mahato@quickreply.ai": "1b9fe0a1dcdacb156e8759a1594bbd7c6302e5e6a9ba2882872e7150f1661bd9",
+    "prateek.pandey@quickreply.ai": "65170f3d914b8575f8325b38df02fb8d572cc4f45de1c7761c9c501dfe1aeae5",
+    "hridyesh.sharma@quickreply.ai": "79916fa68a35e6965d5517676468acd84ca0cc99ce1ff8e13564bb1af7db1fbd",
+    "abhinav.kapoor@quickreply.ai": "a21be7211a618e53e2c0a930ae5127754d867db2524d11d9d506a49b856237f6",
+    "atul.singh@quickreply.ai": "8e9408e61b41123b9d13d72a9dd2dfa2a87d9b5f4716082f491a222e394359fe",
+    "aditya.singh@quickreply.ai": "cfecb6e4ec906a1300d634583a1b2619e6ce80db40bbf87c2def99bddb664ac7",
+    "rushil.shah@quickreply.ai": "3bf5dcfe31608100a74b5773eb14368d3ac7ba7b806b47c82f1e51eb66b714e4",
+    "jatin.nehlani@quickreply.ai": "c49c964a196427f0a0146d4c198fa2d3607defdb590b1719d769dcd1538eb17d",
+    "ashish.karn@quickreply.ai": "b0c151ff510d35164bfeae52f79f858c61ca6f7eb77b957961bdea159b23e135",
+    "anirudh.sharma@quickreply.ai": "a47c7b1af1979dc106c14ab515af1eed91b8a87700b7dee78b496a1c88074496",
+    "hari.sachdeva@quickreply.ai": "d90812faf68b487d2497e59b2d51070c952b29fce4d75e793cf85f435bdb4069",
+    "yash.mangal@quickreply.ai": "372237f90291fef9b44c74d4d2aea4000c2ab11f36d298301701e73ab1ef8095",
+    "ameer.basha@quickreply.ai": "59e90c2a05ca80c490a0abf679fa2714428c26df2bc9158602e579101639ad18",
+    "manik.gandhi@quickreply.ai": "a6e1ff8c58a1293eb7a25712141bd9cd4edc234ec1e6a76271815b14c13e2215",
+    "nikhil.thakur@quickreply.ai": "9000ba13238756e2b5c0ae2c8d9d91a2326aa05bc4ce87f79bb3afb4308f5a61",
+}
+
+def is_superadmin_user(user: Optional[User]) -> bool:
+    if not user:
+        return False
+    try:
+        perms = json.loads(user.permissions or "{}")
+    except Exception:
+        perms = {}
+    return bool(perms.get("is_superadmin") or user.email in ADMIN_EMAILS)
 
 @app.on_event("startup")
 def on_startup():
@@ -193,13 +221,30 @@ def on_startup():
             else:
                 tabs = ["home", "review", "dashboard"]
             
-            perms = {"tabs": tabs, "is_superadmin": is_super}
+            existing_perms = {}
+            if existing:
+                try:
+                    existing_perms = json.loads(existing.permissions or "{}")
+                except Exception:
+                    existing_perms = {}
+            perms = {
+                "tabs": tabs,
+                "is_superadmin": is_super,
+            }
+            if existing_perms.get("password_rotation"):
+                perms["password_rotation"] = existing_perms["password_rotation"]
             
             # Password Logic
-            if is_super:
+            reset_allowed = role not in EXCLUDED_PASSWORD_RESET_ROLES and u_data["email"] in TEMP_PASSWORD_HASHES
+            if reset_allowed:
+                default_pass_hash = TEMP_PASSWORD_HASHES[u_data["email"]]
+                perms["password_rotation"] = PASSWORD_ROTATION_VERSION
+            elif is_super:
                 default_pass = "Quickreply@123"
+                default_pass_hash = hash_password(default_pass)
             else:
                 default_pass = "12345678"
+                default_pass_hash = hash_password(default_pass)
 
             if not existing:
                 user = User(
@@ -207,7 +252,7 @@ def on_startup():
                     name=u_data["name"],
                     role=role,
                     is_admin=is_admin or is_super,
-                    password_hash=hash_password(default_pass),
+                    password_hash=default_pass_hash,
                     permissions=json.dumps(perms)
                 )
                 session.add(user)
@@ -215,9 +260,10 @@ def on_startup():
                 # Update existing user info
                 existing.role = role
                 existing.is_admin = is_admin or is_super
+                if reset_allowed and existing_perms.get("password_rotation") != PASSWORD_ROTATION_VERSION:
+                    existing.password_hash = TEMP_PASSWORD_HASHES[u_data["email"]]
+                    perms["password_rotation"] = PASSWORD_ROTATION_VERSION
                 existing.permissions = json.dumps(perms)
-                # Force password update for seeding if needed
-                existing.password_hash = hash_password(default_pass)
                 session.add(existing)
         
         session.commit()
@@ -455,7 +501,8 @@ async def index(
 async def project_setup(request: Request, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     if not current_user: return RedirectResponse(url="/login")
     perms = json.loads(current_user.permissions)
-    if "setup" not in perms.get("tabs", []):
+    is_superadmin = is_superadmin_user(current_user)
+    if "setup" not in perms.get("tabs", []) and not is_superadmin:
         return HTMLResponse("Unauthorized", status_code=403)
     
     projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
@@ -471,7 +518,7 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
         "qa_list": QA_TEAM_LIST,
         "product_list": PRODUCT_LIST,
         "tech_lead_list": TECH_LEAD_LIST,
-        "perms_is_superadmin": perms.get("is_superadmin", False)
+        "perms_is_superadmin": is_superadmin
     })
 
 @app.post("/setup")
@@ -564,8 +611,7 @@ async def update_project(
 ):
     if not current_user:
         return RedirectResponse(url="/login")
-    perms = json.loads(current_user.permissions)
-    if not perms.get("is_superadmin"):
+    if not is_superadmin_user(current_user):
         return HTMLResponse("Unauthorized", status_code=403)
 
     project = session.get(Project, project_id)
