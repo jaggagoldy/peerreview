@@ -13,6 +13,13 @@ import os
 import threading
 import time
 from typing import List, Optional
+import datetime
+try:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+except ImportError:
+    WebClient = None
+    SlackApiError = Exception
 
 app = FastAPI(title="360° Project Review System")
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
@@ -114,6 +121,34 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
         project.sprint,
         review_rows,
     )
+
+# --- SLACK SERVICE ---
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "").strip()
+slack_client = WebClient(token=SLACK_BOT_TOKEN) if (WebClient and SLACK_BOT_TOKEN) else None
+APP_URL = os.getenv("APP_URL", "https://project-review-360.onrender.com").strip()
+
+def send_slack_reminder_sync(email: str, user_name: str, pending_projects: List[dict]):
+    if not slack_client:
+        print(f"[SLACK] SKIPPED: SLACK_BOT_TOKEN not configured for {email}")
+        return
+    
+    try:
+        # Find user by email
+        result = slack_client.users_lookupByEmail(email=email)
+        user_id = result["user"]["id"]
+        
+        project_links = []
+        for p in pending_projects:
+            project_links.append(f"• *{p['name']}* ({p['sprint']})")
+        
+        projects_text = "\n".join(project_links)
+        
+        message = f"👋 Hi {user_name.split(' ')[0]},\n\nThis is a friendly reminder to complete your peer reviews for the following project(s):\n{projects_text}\n\nYour feedback is essential to make the ratings live for your teammates. You can submit them here: {APP_URL}/review\n\n_This is an automated reminder from the 360 Peer Review System._"
+        
+        slack_client.chat_postMessage(channel=user_id, text=message)
+        print(f"[SLACK] SUCCESS: Sent reminder to {email}")
+    except Exception as e:
+        print(f"[SLACK] FAILED: Error sending to {email}: {e}")
 
 # Master Data
 DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil Shah", "Aditya Singh", "Atul Singh", "Hari Sachdeva", "Hridyesh Sharma", "Manik Gandhi", "Niteesh Mahato"]
@@ -272,6 +307,10 @@ def on_startup():
     backup_thread = threading.Thread(target=nightly_backup_scheduler, daemon=True)
     backup_thread.start()
 
+    # Start daily Slack reminder scheduler
+    slack_thread = threading.Thread(target=daily_slack_reminder_scheduler, daemon=True)
+    slack_thread.start()
+
 
 def nightly_backup_scheduler():
     """Runs in background, creates a DB snapshot every day at 23:00."""
@@ -296,6 +335,52 @@ def nightly_backup_scheduler():
                 print(f"[BACKUP] Snapshot created: {dst}")
         except Exception as e:
             print(f"[BACKUP] Failed: {e}")
+
+
+def daily_slack_reminder_scheduler():
+    """Runs in background, sends Slack reminders every day at 10:00 AM."""
+    while True:
+        now = datetime.datetime.now()
+        # Target: 10:00 AM today or tomorrow
+        target = now.replace(hour=10, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target += datetime.timedelta(days=1)
+        
+        wait_secs = (target - now).total_seconds()
+        print(f"[SLACK SCHEDULER] Waiting {wait_secs/3600:.2f} hours until next reminder batch at 10:00 AM")
+        time.sleep(wait_secs)
+        
+        # Trigger reminders
+        try:
+            with Session(engine) as session:
+                all_projects = session.exec(select(Project)).all()
+                all_reviews = session.exec(select(Review)).all()
+                all_users = session.exec(select(User)).all()
+                
+                # Identify who needs reminders
+                user_pending = {} # {email: {"name": str, "projects": [dict]}}
+                user_map = {u.name: u for u in all_users}
+                
+                for p in all_projects:
+                    stats = get_project_stats(p, all_reviews)
+                    if not stats["is_live"]:
+                        expected = stats["expected_names"]
+                        submitted = stats["submitted_names"]
+                        for m_name in expected:
+                            if m_name not in submitted:
+                                u_obj = user_map.get(m_name)
+                                if u_obj and u_obj.email:
+                                    if u_obj.email not in user_pending:
+                                        user_pending[u_obj.email] = {"name": u_obj.name, "projects": []}
+                                    user_pending[u_obj.email]["projects"].append({"name": p.name, "sprint": p.sprint})
+                
+                # Send reminders
+                for email, data in user_pending.items():
+                    send_slack_reminder_sync(email, data["name"], data["projects"])
+                    time.sleep(1) # Rate limit protection
+                    
+        except Exception as e:
+            print(f"[SLACK SCHEDULER] Error in batch: {e}")
 
 
 def get_session():

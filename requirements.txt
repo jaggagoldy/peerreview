@@ -8,3 +8,4 @@ itsdangerous
 aiofiles
 psycopg2-binary
 sendgrid
+slack-sdk
