@@ -233,19 +233,19 @@ def on_startup():
             from sqlalchemy import text
             # Add project_size
             try:
-                session.execute(text("ALTER TABLE project ADD COLUMN project_size INTEGER DEFAULT 2"))
+                session.execute(text('ALTER TABLE "project" ADD COLUMN project_size INTEGER DEFAULT 2'))
                 session.commit()
             except Exception: session.rollback()
             
             # Add delivery_status
             try:
-                session.execute(text("ALTER TABLE project ADD COLUMN delivery_status VARCHAR DEFAULT 'On Time'"))
+                session.execute(text('ALTER TABLE "project" ADD COLUMN delivery_status VARCHAR DEFAULT \'On Time\''))
                 session.commit()
             except Exception: session.rollback()
 
             # Add reminder_count to User
             try:
-                session.execute(text("ALTER TABLE user ADD COLUMN reminder_count INTEGER DEFAULT 0"))
+                session.execute(text('ALTER TABLE "user" ADD COLUMN reminder_count INTEGER DEFAULT 0'))
                 session.commit()
             except Exception: session.rollback()
             
