@@ -24,6 +24,7 @@
                 <tr style="text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
                     <th style="padding: 0 1rem;">Team Member</th>
                     <th style="padding: 0 1rem;">Role</th>
+                    <th style="padding: 0 1rem; text-align: center;">Reminders</th>
                     <th style="padding: 0 1rem;">Pending Projects</th>
                     <th style="padding: 0 1rem; text-align: right;">Action</th>
                 </tr>
@@ -43,6 +44,12 @@
                         <span style="background: rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: var(--text-muted);">
                             {{ member.role }}
                         </span>
+                    </td>
+                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                        <span style="font-weight: 700; color: {% if member.reminder_count > 3 %}#f87171{% elif member.reminder_count > 0 %}#fbbf24{% else %}var(--text-muted){% endif %}; font-size: 1rem;">
+                            {{ member.reminder_count }}
+                        </span>
+                        <div style="font-size: 0.6rem; opacity: 0.5; text-transform: uppercase;">Sent</div>
                     </td>
                     <td style="padding: 1.2rem 1rem;">
                         <div style="display: flex; flex-wrap: wrap; gap: 6px;">

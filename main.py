@@ -127,7 +127,7 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "").strip()
 slack_client = WebClient(token=SLACK_BOT_TOKEN) if (WebClient and SLACK_BOT_TOKEN) else None
 APP_URL = os.getenv("APP_URL", "https://project-review-360.onrender.com").strip()
 
-def send_slack_reminder_sync(email: str, user_name: str, pending_projects: List[dict]):
+def send_slack_reminder_sync(email: str, user_name: str, pending_projects: List[dict], session: Optional[Session] = None):
     if not slack_client:
         print(f"[SLACK] SKIPPED: SLACK_BOT_TOKEN not configured for {email}")
         return
@@ -147,6 +147,15 @@ def send_slack_reminder_sync(email: str, user_name: str, pending_projects: List[
         
         slack_client.chat_postMessage(channel=user_id, text=message)
         print(f"[SLACK] SUCCESS: Sent reminder to {email}")
+        
+        # Increment reminder count in DB
+        if session:
+            user = session.exec(select(User).where(User.email == email)).first()
+            if user:
+                user.reminder_count += 1
+                session.add(user)
+                session.commit()
+                print(f"[SLACK] Updated reminder_count for {email} to {user.reminder_count}")
     except Exception as e:
         print(f"[SLACK] FAILED: Error sending to {email}: {e}")
 
@@ -231,6 +240,12 @@ def on_startup():
             # Add delivery_status
             try:
                 session.execute(text("ALTER TABLE project ADD COLUMN delivery_status VARCHAR DEFAULT 'On Time'"))
+                session.commit()
+            except Exception: session.rollback()
+
+            # Add reminder_count to User
+            try:
+                session.execute(text("ALTER TABLE user ADD COLUMN reminder_count INTEGER DEFAULT 0"))
                 session.commit()
             except Exception: session.rollback()
             
@@ -376,7 +391,7 @@ def daily_slack_reminder_scheduler():
                 
                 # Send reminders
                 for email, data in user_pending.items():
-                    send_slack_reminder_sync(email, data["name"], data["projects"])
+                    send_slack_reminder_sync(email, data["name"], data["projects"], session=session)
                     time.sleep(1) # Rate limit protection
                     
         except Exception as e:
@@ -1372,7 +1387,8 @@ async def admin_pending_reviews(
                 u_obj = user_map.get(m)
                 role = u_obj.role if u_obj else "Unknown"
                 if m not in member_pending:
-                    member_pending[m] = {"name": m, "role": role, "projects": []}
+                    rem_count = u_obj.reminder_count if u_obj else 0
+                    member_pending[m] = {"name": m, "role": role, "projects": [], "reminder_count": rem_count}
                 member_pending[m]["projects"].append(p)
     
     # Sort by member name

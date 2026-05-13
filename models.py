@@ -12,6 +12,7 @@ class User(SQLModel, table=True):
     is_admin: bool = False
     password_hash: str
     permissions: str = Field(default="{}") # JSON string for granular access
+    reminder_count: int = Field(default=0) # Track how many automated reminders sent
 
 class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
