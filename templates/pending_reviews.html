@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-card animate-fade">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 style="margin-bottom: 0.2rem;">Pending Reviews ⏳</h1>
+            <p style="color: var(--text-muted); margin: 0; font-size: 0.95rem;">
+                Track team members who haven't completed their peer reviews.
+            </p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <div class="glass-card" style="margin: 0; padding: 0.5rem 1.2rem; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05);">
+                <span style="font-size: 0.75rem; opacity: 0.7; text-transform: uppercase; display: block;">Total Pending Members</span>
+                <span style="font-size: 1.5rem; font-weight: 800; color: #f87171;">{{ pending_members|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if pending_members %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0 12px;">
+            <thead>
+                <tr style="text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <th style="padding: 0 1rem;">Team Member</th>
+                    <th style="padding: 0 1rem;">Role</th>
+                    <th style="padding: 0 1rem;">Pending Projects</th>
+                    <th style="padding: 0 1rem; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in pending_members %}
+                <tr class="table-row-hover" style="background: rgba(255,255,255,0.02); transition: all 0.2s;">
+                    <td style="padding: 1.2rem 1rem; border-radius: 12px 0 0 12px; border-left: 3px solid #f87171;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; background: rgba(99,102,241,0.1); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;">
+                                {{ member.name[:2].upper() }}
+                            </div>
+                            <div style="font-weight: 700; color: #fff; font-size: 1rem;">{{ member.name }}</div>
+                        </div>
+                    </td>
+                    <td style="padding: 1.2rem 1rem;">
+                        <span style="background: rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: var(--text-muted);">
+                            {{ member.role }}
+                        </span>
+                    </td>
+                    <td style="padding: 1.2rem 1rem;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            {% for p in member.projects %}
+                            <span style="background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
+                                {{ p.name }} ({{ p.sprint }})
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td style="padding: 1.2rem 1rem; border-radius: 0 12px 12px 0; text-align: right;">
+                        <button onclick="copyReminder('{{ member.name }}', '{{ member.projects|map(attribute='name')|join(', ') }}')" class="btn" style="background: rgba(99,102,241,0.1); color: var(--primary); padding: 0.5rem 1rem; font-size: 0.8rem;">
+                            📋 Copy Reminder
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 5rem 2rem; background: rgba(16,185,129,0.03); border-radius: 20px; border: 1px dashed rgba(16,185,129,0.2);">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+        <h3 style="color: var(--accent); margin-bottom: 0.5rem;">All caught up!</h3>
+        <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto;">
+            Great job! All team members have completed their peer reviews for all projects.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-row-hover:hover {
+        background: rgba(255,255,255,0.04) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+</style>
+
+<script>
+function copyReminder(name, projects) {
+    const text = `Hi ${name.split(' ')[0]}, please complete your peer reviews for the following project(s): ${projects}. Your feedback is essential to make the ratings live. Thanks!`;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Reminder copied to clipboard for ' + name);
+    });
+}
+</script>
+{% endblock %}

@@ -177,6 +177,7 @@
 
                     {% if is_superadmin %}
                     <a href="/admin/users" id="nav-admin" style="color: var(--accent);">User Access</a>
+                    <a href="/admin/pending-reviews" id="nav-pending" style="color: #f87171;">⏳ Pending Reviews</a>
                     <a href="/admin/recycle-bin" id="nav-recycle" class="recycle-nav">🗑️ Recycle Bin</a>
                     {% endif %}
                 </nav>
@@ -330,6 +331,7 @@
         else if (path.includes('/review')) document.getElementById('nav-review')?.classList.add('active');
         else if (path.includes('/dashboard')) document.getElementById('nav-dash')?.classList.add('active');
         else if (path.includes('/admin/users')) document.getElementById('nav-admin')?.classList.add('active');
+        else if (path.includes('/admin/pending-reviews')) document.getElementById('nav-pending')?.classList.add('active');
         else if (path.includes('/admin/recycle')) document.getElementById('nav-recycle')?.classList.add('active');
 
         // Profile dropdown

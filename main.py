@@ -1262,6 +1262,43 @@ async def recycle_bin(
         "current_user": current_user
     })
 
+@app.get("/admin/pending-reviews", response_class=HTMLResponse)
+async def admin_pending_reviews(
+    request: Request,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user: return RedirectResponse(url="/login")
+    if not is_superadmin_user(current_user):
+        return HTMLResponse("Unauthorized", status_code=403)
+    
+    all_projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
+    all_reviews = session.exec(select(Review)).all()
+    all_users = session.exec(select(User)).all()
+    user_map = {u.name: u for u in all_users}
+    
+    member_pending = {}
+    for p in all_projects:
+        stats = get_project_stats(p, all_reviews)
+        expected = stats["expected_names"]
+        submitted = stats["submitted_names"]
+        for m in expected:
+            if m not in submitted:
+                u_obj = user_map.get(m)
+                role = u_obj.role if u_obj else "Unknown"
+                if m not in member_pending:
+                    member_pending[m] = {"name": m, "role": role, "projects": []}
+                member_pending[m]["projects"].append(p)
+    
+    # Sort by member name
+    sorted_members = sorted(member_pending.values(), key=lambda x: x["name"])
+    
+    return templates.TemplateResponse(request=request, name="pending_reviews.html", context={
+        "request": request,
+        "pending_members": sorted_members,
+        "current_user": current_user
+    })
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
