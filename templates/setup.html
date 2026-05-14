@@ -118,7 +118,13 @@
             </div>
             <div class="form-group">
                 <label>QA Lead (Default: Prateek)</label>
-                <input type="text" name="qa_lead_name" value="Prateek">
+                <select name="qa_lead_name" id="qa_lead_select">
+                    <option value="None">None</option>
+                    {% for qa in qa_list %}
+                    <option value="{{ qa }}" {% if qa == 'Prateek' %}selected{% endif %}>{{ qa }}</option>
+                    {% endfor %}
+                    <option value="Prateek">Prateek</option> <!-- Fallback if Prateek is not in qa_list -->
+                </select>
             </div>
         </div>
 
@@ -217,7 +223,13 @@
                         </div>
                         <div class="form-group">
                             <label>QA Lead</label>
-                            <input type="text" name="qa_lead_name" value="{{ p.qa_lead_name or '' }}">
+                            <select name="qa_lead_name">
+                                <option value="None">None</option>
+                                {% for qa in qa_list %}
+                                <option value="{{ qa }}" {% if p.qa_lead_name == qa %}selected{% endif %}>{{ qa }}</option>
+                                {% endfor %}
+                                <option value="Prateek" {% if p.qa_lead_name == 'Prateek' %}selected{% endif %}>Prateek</option>
+                            </select>
                         </div>
                     </div>
 
@@ -269,6 +281,9 @@
     const devPocSelect = document.getElementById('dev_poc_select');
     const qaPocSelect = document.getElementById('qa_poc_select');
 
+    const qaLeadSelect = document.querySelector('select[name="qa_lead_name"]');
+    const qaLeadGroup = qaLeadSelect ? qaLeadSelect.closest('.form-group') : null;
+
     function updatePocOptions(checkboxes, selectEl) {
         const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
         const currentValue = selectEl.value;
@@ -284,6 +299,20 @@
         // Smart POC: Auto-select if only one person
         if (selected.length === 1) {
             selectEl.value = selected[0];
+        }
+
+        // QA Lead Logic: If it's the QA team checkboxes and a lead select exists
+        if (checkboxes === qaCheckboxes && qaLeadSelect) {
+            if (selected.length > 0) {
+                // Only change if currently None
+                if (qaLeadSelect.value === "None") {
+                    qaLeadSelect.value = "Prateek";
+                }
+                if (qaLeadGroup) qaLeadGroup.style.opacity = "1";
+            } else {
+                qaLeadSelect.value = "None";
+                if (qaLeadGroup) qaLeadGroup.style.opacity = "0.5";
+            }
         }
     }
 
