@@ -13,7 +13,7 @@
     <!-- Smart Filter Bar -->
     <form method="get" action="/dashboard" id="filterForm">
         <div class="glass-card" style="padding:1.5rem;margin-bottom:2rem;border-color:rgba(99,102,241,0.25);">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1.6fr auto;gap:1.2rem;align-items:end;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 0.8fr 1.6fr auto;gap:1.2rem;align-items:end;">
 
                 <!-- By Project -->
                 <div class="form-group" style="margin-bottom:0;">
@@ -37,6 +37,16 @@
                         <option value="Product" {% if filters.role=='Product' %}selected{% endif %}>Product</option>
                         <option value="Tech Lead" {% if filters.role=='Tech Lead' %}selected{% endif %}>Tech Lead
                         </option>
+                    </select>
+                </div>
+
+                <!-- By Status -->
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-size:0.78rem;opacity:0.7;display:block;margin-bottom:6px;">Status</label>
+                    <select name="live_status" style="width:100%;">
+                        <option value="">All Status</option>
+                        <option value="live" {% if filters.live_status=='live' %}selected{% endif %}>Live Only</option>
+                        <option value="pending" {% if filters.live_status=='pending' %}selected{% endif %}>Pending Only</option>
                     </select>
                 </div>
 
@@ -94,6 +104,11 @@
                 {% for p in all_projects %}{% if p.id == filters.project_id %}<span
                     style="background:rgba(16,185,129,0.12);color:var(--accent);font-size:0.72rem;padding:3px 10px;border-radius:20px;">Project:
                     {{ p.name }}</span>{% endif %}{% endfor %}
+                {% endif %}
+                {% if filters.live_status %}
+                <span
+                    style="background:rgba(245,158,11,0.12);color:#fbbf24;font-size:0.72rem;padding:3px 10px;border-radius:20px;">Status:
+                    {{ filters.live_status|capitalize }}</span>
                 {% endif %}
                 {% if filters.user_name %}
                 {% for un in filters.user_name %}
@@ -437,12 +452,8 @@
                     <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.05);">
                         <div
                             style="display:flex;justify-content:space-between;font-size:0.73rem;color:var(--accent);font-weight:700;margin-bottom:4px;">
-                            <span>{{ user_profile.all_projects[r.project_id] }}</span>
-                            {% if is_admin %}
+                            <span>{{ user_profile.all_projects[r.project_id] }} &nbsp;·&nbsp; {{ r.score_1 }}★</span>
                             <span style="opacity:0.6;">By {{ r.reviewer_name }}</span>
-                            {% else %}
-                            <span style="opacity:0.6;">Anonymous Feedback</span>
-                            {% endif %}
                         </div>
                         <div style="font-size:0.83rem;color:#fff;line-height:1.45;">"{{ r.remarks }}"</div>
                     </div>

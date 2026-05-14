@@ -146,16 +146,30 @@
     <!-- ---- My Performance Stats ---- -->
     {% if my_reviews_received %}
     <h2 style="margin-bottom: 1.2rem;">My Performance</h2>
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; margin-bottom: 2.5rem;">
-        <div class="glass-card" style="text-align: center; margin-bottom: 0; background: rgba(99,102,241,0.1); border-color: var(--primary);">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2.5rem;">
+        <div class="glass-card" style="text-align: center; margin-bottom: 0; background: rgba(99,102,241,0.1); border-color: var(--primary); display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Peer Rating</div>
             <div style="font-size: 3rem; font-weight: 800; color: var(--primary);">{{ overall_avg }}</div>
             <div style="font-size: 0.65rem; color: var(--text-muted);">avg out of 5</div>
         </div>
-        <div class="glass-card" style="text-align: center; margin-bottom: 0;">
-            <div style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">Total Reviews Received</div>
-            <div style="font-size: 3rem; font-weight: 800; color: var(--accent);">{{ total_received }}</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted);">from teammates</div>
+        
+        <div class="glass-card" style="margin-bottom: 0; padding: 1.5rem;">
+            <h3 style="font-size: 0.9rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Detailed Feedback</span>
+                <span style="font-size: 0.65rem; opacity: 0.5; font-weight: normal;">Transparent View</span>
+            </h3>
+            <div style="max-height: 200px; overflow-y: auto; padding-right: 8px;">
+                {% for r in my_reviews_received|reverse %}
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">
+                        <span style="color: var(--accent);">{{ r.score_1 }}★ By {{ r.reviewer_name }}</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #fff; font-style: italic;">"{{ r.remarks }}"</div>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted); text-align: center; font-size: 0.8rem; padding-top: 1rem;">No feedback yet.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
     {% else %}

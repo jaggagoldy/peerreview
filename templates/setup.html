@@ -103,7 +103,7 @@
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
             <div class="form-group">
                 <label>Dev POC</label>
                 <select name="dev_poc" id="dev_poc_select" required>
@@ -115,6 +115,10 @@
                 <select name="qa_poc" id="qa_poc_select">
                     <option value="">None / N/A</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label>QA Lead (Default: Prateek)</label>
+                <input type="text" name="qa_lead_name" value="Prateek">
             </div>
         </div>
 
@@ -147,7 +151,7 @@
                         </span>
                     </h3>
                     <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Score:
-                        {{ p.project_size }} | Release: {{ p.release_date }}</p>
+                        {{ p.project_size }} | Release: {{ p.release_date }} | QA Lead: {{ p.qa_lead_name or 'None' }}</p>
                 </div>
                 <div style="text-align: right;">
                     <div style="color: var(--primary); font-size: 0.9rem; font-weight: 600;">POC: {{ p.dev_poc }} / {{
@@ -210,6 +214,10 @@
                         <div class="form-group">
                             <label>Release Date</label>
                             <input type="date" name="release_date" value="{{ p.release_date }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>QA Lead</label>
+                            <input type="text" name="qa_lead_name" value="{{ p.qa_lead_name or '' }}">
                         </div>
                     </div>
 

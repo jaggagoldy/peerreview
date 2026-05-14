@@ -63,7 +63,7 @@ def send_review_notification_email_sync(
     from sendgrid import SendGridAPIClient
     from sendgrid.helpers.mail import Mail, Email, ReplyTo
 
-    cc_emails = ["hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+    cc_emails = ["hridayesh.gupta@quickreply.ai"]
     # Avoid CC-ing the reviewer themselves
     cc_emails = [e for e in cc_emails if e != to_email]
     subject = f"Performance Review Submitted: {project_name} ({project_sprint})"
@@ -121,6 +121,78 @@ def send_review_notification_email(user: User, project: Project, reviews: List[R
         project.sprint,
         review_rows,
     )
+
+def send_project_live_notification_email(project: Project, stats: dict, background_tasks: BackgroundTasks, session: Session):
+    """Sends a summary email to all project stakeholders when ratings go live."""
+    api_key = get_sendgrid_api_key()
+    if not api_key: return
+
+    # Get all members
+    members = get_project_members(project)
+    member_emails = []
+    all_users = session.exec(select(User)).all()
+    user_map = {u.name: u.email for u in all_users if u.email}
+    
+    for m in members:
+        if m in user_map:
+            member_emails.append(user_map[m])
+    
+    if not member_emails: return
+
+    # Calculate averages by role for this project
+    all_reviews = session.exec(select(Review).where(Review.project_id == project.id)).all()
+    role_avgs = {}
+    improvement_points = []
+    
+    for r in all_reviews:
+        if r.rated_role not in role_avgs:
+            role_avgs[r.rated_role] = []
+        role_avgs[r.rated_role].append(r.score_1)
+        if r.improvement_feedback:
+            improvement_points.append(f"• {r.improvement_feedback}")
+
+    stats_text = ""
+    for role, scores in role_avgs.items():
+        avg = round(sum(scores) / len(scores), 2)
+        stats_text += f"\n- {role} Average Rating: {avg}/5"
+
+    feedback_text = "\n".join(list(set(improvement_points))[:10]) # Top 10 unique points
+
+    subject = f"🚀 Ratings are now LIVE: {project.name} ({project.sprint})"
+    body = f"""Hello Team,
+
+Great news! All peer reviews for '{project.name}' have been submitted. Ratings and feedback are now visible on your dashboard.
+
+PROJECT PERFORMANCE SUMMARY:{stats_text}
+
+IMPROVEMENT FEEDBACK HIGHLIGHTS:
+{feedback_text or 'No specific improvement points mentioned.'}
+
+You can view your detailed personal feedback here: {APP_URL}/dashboard?project_id={project.id}
+
+Keep up the great work!
+360 Peer Review System
+"""
+    
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email
+    
+    message = Mail(
+        from_email=Email(FROM_EMAIL, "360 Peer Review System"),
+        to_emails=member_emails,
+        subject=subject,
+        plain_text_content=body
+    )
+    # Add executives to CC
+    for exec_email in EXECUTIVE_EMAILS:
+        message.add_cc(exec_email)
+
+    try:
+        sg = SendGridAPIClient(api_key)
+        sg.send(message)
+        print(f"[EMAIL] Project Live notification sent for {project.name}")
+    except Exception as e:
+        print(f"[EMAIL] Live notification failed: {e}")
 
 # --- SLACK SERVICE ---
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "").strip()
@@ -194,6 +266,11 @@ USER_EMAILS = [
 ]
 
 ADMIN_EMAILS = ["himanshu.gupta@quickreply.ai", "hridayesh.gupta@quickreply.ai", "goldy.jagga@quickreply.ai"]
+EXECUTIVE_EMAILS = ["himanshu.gupta@quickreply.ai", "hridayesh.gupta@quickreply.ai"] # CEO and CTO
+
+def is_executive_user(user: Optional[User]) -> bool:
+    return user and user.email in EXECUTIVE_EMAILS
+
 PASSWORD_ROTATION_VERSION = "2026-05-08-team-random-reset"
 EXCLUDED_PASSWORD_RESET_ROLES = {"CEO", "CTO", "Scrum Master"}
 TEMP_PASSWORD_HASHES = {
@@ -246,6 +323,12 @@ def on_startup():
             # Add reminder_count to User
             try:
                 session.execute(text('ALTER TABLE "user" ADD COLUMN reminder_count INTEGER DEFAULT 0'))
+                session.commit()
+            except Exception: session.rollback()
+
+            # Add qa_lead_name to Project
+            try:
+                session.execute(text('ALTER TABLE "project" ADD COLUMN qa_lead_name VARCHAR DEFAULT \'Prateek\''))
                 session.commit()
             except Exception: session.rollback()
             
@@ -639,6 +722,7 @@ async def create_project(
     tech_lead_name: Optional[str] = Form(None),
     project_size: int = Form(2),
     delivery_status: str = Form("On Time"),
+    qa_lead_name: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -660,6 +744,9 @@ async def create_project(
     if not dev_poc and dev_team: dev_poc = dev_team[0]
     if not dev_poc: dev_poc = "N/A"
     if not qa_poc: qa_poc = "N/A"
+    
+    # QA Lead Logic: Use form value if provided, else default to "Prateek" if QA members exist
+    qa_lead = qa_lead_name if (qa_lead_name and qa_lead_name.strip()) else ("Prateek" if qa_team else "None")
 
     project = Project(
         name=name,
@@ -677,7 +764,8 @@ async def create_project(
         qa_poc=qa_poc if qa_poc else "N/A",
         tech_lead_name=tech_lead_name,
         project_size=project_size,
-        delivery_status=delivery_status
+        delivery_status=delivery_status,
+        qa_lead_name=qa_lead
     )
     session.add(project)
     session.commit()
@@ -706,6 +794,7 @@ async def update_project(
     release_date: str = Form(...),
     project_size: int = Form(...),
     delivery_status: str = Form(...),
+    qa_lead_name: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -729,6 +818,7 @@ async def update_project(
         "release_date": date.fromisoformat(release_date),
         "project_size": project_size,
         "delivery_status": delivery_status,
+        "qa_lead_name": qa_lead_name if qa_lead_name else project.qa_lead_name,
     }
 
     labels = {
@@ -742,6 +832,7 @@ async def update_project(
         "release_date": "Release Date",
         "project_size": "Project Score",
         "delivery_status": "Delivery Status",
+        "qa_lead_name": "QA Lead",
     }
     changes = {}
     for field, new_value in editable_fields.items():
@@ -756,6 +847,11 @@ async def update_project(
 
     if changes:
         session.add(project)
+        
+        # QA Lead Logic: Sync when project changes (already handled in editable_fields)
+        # qas = json.loads(project.qa_team or "[]")
+        # project.qa_lead_name = "Prateek" if qas else "None"
+        
         history = ProjectEditHistory(
             project_id=project.id,
             edited_by=current_user.name,
@@ -935,7 +1031,16 @@ async def submit_reviews(
     
     session.commit()
 
-    # --- EMAIL NOTIFICATION LOGIC ---
+    # Check if project just became live
+    new_all_reviews = session.exec(select(Review).where(Review.project_id == project_id)).all()
+    new_stats = get_project_stats(project, new_all_reviews)
+    if new_stats["is_live"]:
+        try:
+            background_tasks.add_task(send_project_live_notification_email, project, new_stats, background_tasks, session)
+        except Exception as e:
+            print(f"Live notification trigger failed: {e}")
+
+    # --- EMAIL NOTIFICATION LOGIC (Submission confirmation) ---
     try:
         send_review_notification_email(current_user, project, submitted_reviews_summary, background_tasks)
     except Exception as e:
@@ -949,6 +1054,7 @@ async def dashboard(
     project_id: Optional[str] = None,
     role: Optional[str] = Query(None),
     user_name: List[str] = Query(default=[]),
+    live_status: Optional[str] = Query(None), # 'live', 'pending', or None
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -980,24 +1086,35 @@ async def dashboard(
         if p_stats["is_live"]:
             live_project_ids.add(p.id)
 
-    # For non-admins, only their assigned projects appear in the project dropdown
-    if is_admin:
+    # PRIVACY LOGIC:
+    # 1. Executive Users (CEO/CTO) see all reviews regardless of live status.
+    # 2. Others (including Goldy and regular users) only see reviews from LIVE projects.
+    is_exec = is_executive_user(current_user)
+    
+    if is_exec:
+        base_reviews = all_reviews
         visible_projects = all_projects
     else:
-        visible_projects = [
-            p for p in all_projects
-            if current_user.name in get_project_members(p)
-        ]
-
-    # Filter base reviews: non-admins only see reviews from live projects
-    base_reviews = all_reviews
-    if not is_admin:
         base_reviews = [r for r in all_reviews if r.project_id in live_project_ids]
+        if is_admin:
+            visible_projects = all_projects # Admins see all project names but only live ratings
+        else:
+            visible_projects = [
+                p for p in all_projects
+                if current_user.name in get_project_members(p)
+            ]
 
     # Apply filters to current view
     filtered_reviews = list(base_reviews)
     if pid:
         filtered_reviews = [r for r in filtered_reviews if r.project_id == pid]
+    
+    # Filter projects based on live status if requested
+    if live_status == 'live':
+        filtered_reviews = [r for r in filtered_reviews if r.project_id in live_project_ids]
+    elif live_status == 'pending':
+        filtered_reviews = [r for r in filtered_reviews if r.project_id not in live_project_ids]
+
     if role:
         filtered_reviews = [r for r in filtered_reviews if r.rated_role == role]
     if user_name:
@@ -1343,6 +1460,26 @@ async def delete_project(
             
         session.commit()
     return RedirectResponse(url="/", status_code=303)
+
+@app.get("/admin/reset-reviews")
+async def reset_reviews_route(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Hidden route to reset specific reviews as requested by user."""
+    if not current_user or current_user.email not in EXECUTIVE_EMAILS:
+        return HTMLResponse("Unauthorized", status_code=403)
+    
+    names_to_reset = ["Jatin Nehlani", "Nikhil Thakur", "Prateek Pandey", "Niteesh Mahato"]
+    count = 0
+    for name in names_to_reset:
+        statement = select(Review).where(Review.reviewer_name == name)
+        results = session.exec(statement).all()
+        for r in results:
+            session.delete(r)
+            count += 1
+    session.commit()
+    return {"status": "success", "deleted_count": count, "reset_users": names_to_reset}
 
 # ---- Superadmin: Recycle Bin view ----
 @app.get("/admin/recycle-bin", response_class=HTMLResponse)
