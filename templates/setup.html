@@ -117,13 +117,13 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>QA Lead (Default: Prateek)</label>
+                <label>QA Lead (Default: Prateek Pandey)</label>
                 <select name="qa_lead_name" id="qa_lead_select">
                     <option value="None">None</option>
                     {% for qa in qa_list %}
-                    <option value="{{ qa }}" {% if qa == 'Prateek' %}selected{% endif %}>{{ qa }}</option>
+                    <option value="{{ qa }}" {% if qa == 'Prateek Pandey' %}selected{% endif %}>{{ qa }}</option>
                     {% endfor %}
-                    <option value="Prateek">Prateek</option> <!-- Fallback if Prateek is not in qa_list -->
+                    <option value="Prateek Pandey">Prateek Pandey</option>
                 </select>
             </div>
         </div>
@@ -228,7 +228,7 @@
                                 {% for qa in qa_list %}
                                 <option value="{{ qa }}" {% if p.qa_lead_name == qa %}selected{% endif %}>{{ qa }}</option>
                                 {% endfor %}
-                                <option value="Prateek" {% if p.qa_lead_name == 'Prateek' %}selected{% endif %}>Prateek</option>
+                                <option value="Prateek Pandey" {% if p.qa_lead_name == 'Prateek Pandey' %}selected{% endif %}>Prateek Pandey</option>
                             </select>
                         </div>
                     </div>
@@ -306,7 +306,7 @@
             if (selected.length > 0) {
                 // Only change if currently None
                 if (qaLeadSelect.value === "None") {
-                    qaLeadSelect.value = "Prateek";
+                qaLeadSelect.value = "Prateek Pandey";
                 }
                 if (qaLeadGroup) qaLeadGroup.style.opacity = "1";
             } else {

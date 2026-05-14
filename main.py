@@ -328,7 +328,7 @@ def on_startup():
 
             # Add qa_lead_name to Project
             try:
-                session.execute(text('ALTER TABLE "project" ADD COLUMN qa_lead_name VARCHAR DEFAULT \'Prateek\''))
+                session.execute(text('ALTER TABLE "project" ADD COLUMN qa_lead_name VARCHAR DEFAULT \'Prateek Pandey\''))
                 session.commit()
             except Exception: session.rollback()
             
@@ -745,8 +745,8 @@ async def create_project(
     if not dev_poc: dev_poc = "N/A"
     if not qa_poc: qa_poc = "N/A"
     
-    # QA Lead Logic: Use form value if provided, else default to "Prateek" if QA members exist
-    qa_lead = qa_lead_name if (qa_lead_name and qa_lead_name.strip()) else ("Prateek" if qa_team else "None")
+    # QA Lead Logic: Use form value if provided, else default to "Prateek Pandey" if QA members exist
+    qa_lead = qa_lead_name if (qa_lead_name and qa_lead_name.strip()) else ("Prateek Pandey" if qa_team else "None")
 
     project = Project(
         name=name,
@@ -850,7 +850,7 @@ async def update_project(
         
         # QA Lead Logic: Sync when project changes (already handled in editable_fields)
         # qas = json.loads(project.qa_team or "[]")
-        # project.qa_lead_name = "Prateek" if qas else "None"
+        # project.qa_lead_name = "Prateek Pandey" if qas else "None"
         
         history = ProjectEditHistory(
             project_id=project.id,
@@ -1461,25 +1461,32 @@ async def delete_project(
         session.commit()
     return RedirectResponse(url="/", status_code=303)
 
-@app.get("/admin/reset-reviews")
-async def reset_reviews_route(
+@app.get("/admin/system-master-reset")
+async def system_master_reset(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    """Hidden route to reset specific reviews as requested by user."""
+    """Dangerous route: Deletes ALL projects, reviews, and history for a fresh start."""
     if not current_user or current_user.email not in EXECUTIVE_EMAILS:
         return HTMLResponse("Unauthorized", status_code=403)
     
-    names_to_reset = ["Jatin Nehlani", "Nikhil Thakur", "Prateek Pandey", "Niteesh Mahato"]
-    count = 0
-    for name in names_to_reset:
-        statement = select(Review).where(Review.reviewer_name == name)
-        results = session.exec(statement).all()
-        for r in results:
-            session.delete(r)
-            count += 1
+    # Delete all reviews
+    session.execute(text('DELETE FROM "review"'))
+    # Delete all projects
+    session.execute(text('DELETE FROM "project"'))
+    # Delete recycle bin
+    session.execute(text('DELETE FROM "deletedproject"'))
+    # Delete history
+    session.execute(text('DELETE FROM "projectedithistory"'))
+    # Delete notifications (optional but good for fresh start)
+    session.execute(text('DELETE FROM "notification"'))
+    
     session.commit()
-    return {"status": "success", "deleted_count": count, "reset_users": names_to_reset}
+    return {
+        "status": "success", 
+        "message": "System has been completely reset. All projects and reviews are gone.",
+        "action": "Fresh Start Initiated"
+    }
 
 # ---- Superadmin: Recycle Bin view ----
 @app.get("/admin/recycle-bin", response_class=HTMLResponse)
