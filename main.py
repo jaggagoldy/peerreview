@@ -1467,26 +1467,29 @@ async def system_master_reset(
     session: Session = Depends(get_session)
 ):
     """Dangerous route: Deletes ALL projects, reviews, and history for a fresh start."""
-    if not current_user or current_user.email not in EXECUTIVE_EMAILS:
-        return HTMLResponse("Unauthorized", status_code=403)
-    
-    # Delete all reviews
-    session.execute(delete(Review))
-    # Delete all projects
-    session.execute(delete(Project))
-    # Delete recycle bin
-    session.execute(delete(DeletedProject))
-    # Delete history
-    session.execute(delete(ProjectEditHistory))
-    # Delete notifications (optional but good for fresh start)
-    session.execute(delete(Notification))
-    
-    session.commit()
-    return {
-        "status": "success", 
-        "message": "System has been completely reset. All projects and reviews are gone.",
-        "action": "Fresh Start Initiated"
-    }
+    try:
+        if not current_user:
+            return HTMLResponse("Not logged in", status_code=401)
+        
+        if current_user.email not in EXECUTIVE_EMAILS:
+            return HTMLResponse(f"Unauthorized: {current_user.email} not in Executive list", status_code=403)
+        
+        # Delete using simple execute for better compatibility
+        session.execute(delete(Review))
+        session.execute(delete(Project))
+        session.execute(delete(DeletedProject))
+        session.execute(delete(ProjectEditHistory))
+        session.execute(delete(Notification))
+        
+        session.commit()
+        return {
+            "status": "success", 
+            "message": "System has been completely reset.",
+            "action": "Fresh Start Initiated"
+        }
+    except Exception as e:
+        session.rollback()
+        return HTMLResponse(f"System Reset Failed: {str(e)}", status_code=500)
 
 # ---- Superadmin: Recycle Bin view ----
 @app.get("/admin/recycle-bin", response_class=HTMLResponse)
