@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, delete
 from models import Project, Review, User, DeletedProject, Notification, ProjectEditHistory, engine, create_db_and_tables
 from datetime import date
 import hashlib
@@ -1471,15 +1471,15 @@ async def system_master_reset(
         return HTMLResponse("Unauthorized", status_code=403)
     
     # Delete all reviews
-    session.execute(text('DELETE FROM "review"'))
+    session.execute(delete(Review))
     # Delete all projects
-    session.execute(text('DELETE FROM "project"'))
+    session.execute(delete(Project))
     # Delete recycle bin
-    session.execute(text('DELETE FROM "deletedproject"'))
+    session.execute(delete(DeletedProject))
     # Delete history
-    session.execute(text('DELETE FROM "projectedithistory"'))
+    session.execute(delete(ProjectEditHistory))
     # Delete notifications (optional but good for fresh start)
-    session.execute(text('DELETE FROM "notification"'))
+    session.execute(delete(Notification))
     
     session.commit()
     return {
