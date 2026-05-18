@@ -330,11 +330,16 @@ def on_startup():
                 session.commit()
             except Exception: session.rollback()
 
-            # Add is_active to User
+            # Add is_active to User (Postgres uses TRUE, SQLite can use TRUE or 1)
             try:
-                session.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
+                session.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
                 session.commit()
-            except Exception: session.rollback()
+            except Exception:
+                session.rollback()
+                try:
+                    session.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
+                    session.commit()
+                except Exception: session.rollback()
             
             print("✅ Migration: Verified Project table columns.")
         except Exception as e:
