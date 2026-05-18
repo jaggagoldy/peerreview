@@ -1058,6 +1058,26 @@ async def submit_reviews(
         session.add(review)
         submitted_reviews_summary.append(review)
     
+    if not submitted_reviews_summary:
+        # Create a system/project-level review record so the user is marked as having submitted their review
+        review = Review(
+            project_id=project_id,
+            reviewer_name=current_user.name,
+            reviewer_role=current_user.role,
+            rated_person="Project (No Peer Rating)",
+            rated_role="System",
+            score_1=3,
+            score_2=0,
+            score_3=0,
+            score_poc=None,
+            score_tech_lead=None,
+            remarks="Completed project review without peer ratings.",
+            improvement_feedback=improvement,
+            delay_reason=form_data.get("delay_reason", "")
+        )
+        session.add(review)
+        submitted_reviews_summary.append(review)
+
     session.commit()
 
     # Check if project just became live
@@ -1177,6 +1197,7 @@ async def dashboard(
 
     leaderboard = []
     for name, projects_data in user_project_scores.items():
+        if name == "Project (No Peer Rating)": continue
         total_impact = 0
         total_s1 = 0
         total_count = 0
