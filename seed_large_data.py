@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 from models import engine, Project, Review, User, create_db_and_tables
 
 # Team lists from main.py
-DEV_TEAM_LIST = ["Yash Mangal", "Abhishek", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hari Sachdeva", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
+DEV_TEAM_LIST = ["Yash Mangal", "Abhishek", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil", "Aditya", "Atul", "Hridyesh", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Prateek Sharma"]
 # Include Management in the pool for assignments, even if they won't be rated

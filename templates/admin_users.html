@@ -47,7 +47,14 @@
                     {{ user.name[:2].upper() }}
                 </div>
                 <div>
-                    <div style="font-weight: 700; font-size: 1.05rem; color: #fff;">{{ user.name }}</div>
+                    <div style="font-weight: 700; font-size: 1.05rem; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        {{ user.name }}
+                        {% if user.is_active == False %}
+                        <span style="background: rgba(239,68,68,0.15); color: #ef4444; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(239,68,68,0.3);">DEACTIVATED</span>
+                        {% else %}
+                        <span style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.3);">ACTIVE</span>
+                        {% endif %}
+                    </div>
                     <div style="font-size: 0.8rem; color: var(--text-muted);">{{ user.email }}</div>
                 </div>
                 {% set perms = user.permissions | from_json %}
@@ -78,11 +85,16 @@
                         </div>
                         <!-- Admin toggle -->
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label style="font-size: 0.7rem; opacity: 0.6; display: block; margin-bottom: 5px;">Admin Access</label>
-                            <div style="display: flex; align-items: center; gap: 8px; padding-top: 6px;">
-                                <input type="checkbox" name="is_admin" value="true" {% if user.is_admin %}checked{% endif %}
-                                    style="width: 18px; height: 18px;">
-                                <span style="font-size: 0.82rem; color: var(--text-muted);">Is Admin</span>
+                            <label style="font-size: 0.7rem; opacity: 0.6; display: block; margin-bottom: 5px;">Access & Status</label>
+                            <div style="display: flex; align-items: center; gap: 15px; padding-top: 6px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="is_admin" value="true" {% if user.is_admin %}checked{% endif %} style="width: 16px; height: 16px;">
+                                    <span style="font-size: 0.82rem; color: var(--text-muted);">Is Admin</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="is_active" value="true" {% if user.is_active != False %}checked{% endif %} style="width: 16px; height: 16px;">
+                                    <span style="font-size: 0.82rem; color: var(--text-muted);">Active</span>
+                                </label>
                             </div>
                         </div>
                     </div>

@@ -232,7 +232,7 @@ def send_slack_reminder_sync(email: str, user_name: str, pending_projects: List[
         print(f"[SLACK] FAILED: Error sending to {email}: {e}")
 
 # Master Data
-DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil Shah", "Aditya Singh", "Atul Singh", "Hari Sachdeva", "Hridyesh Sharma", "Manik Gandhi", "Niteesh Mahato"]
+DEV_TEAM_LIST = ["Yash Mangal", "Ashish Karn", "Jatin Nehlani", "Nikhil Thakur", "Rushil Shah", "Aditya Singh", "Atul Singh", "Hridyesh Sharma", "Manik Gandhi", "Niteesh Mahato"]
 QA_TEAM_LIST = ["Anirudh Sharma", "Prateek Pandey", "Shaik Ameer Basha"]
 PRODUCT_LIST = ["Abhinav Kapoor", "Himanshu Gupta", "Hridayesh Gupta"] # Removed Prateek Sharma, added Himanshu & Hridayesh
 TECH_LEAD_LIST = ["Niteesh Mahato", "Hridayesh Gupta"]
@@ -258,7 +258,6 @@ USER_EMAILS = [
     {"email": "jatin.nehlani@quickreply.ai", "name": "Jatin Nehlani", "role": "Dev", "admin": False},
     {"email": "ashish.karn@quickreply.ai", "name": "Ashish Karn", "role": "Dev", "admin": False},
     {"email": "anirudh.sharma@quickreply.ai", "name": "Anirudh Sharma", "role": "QA", "admin": False},
-    {"email": "hari.sachdeva@quickreply.ai", "name": "Hari Sachdeva", "role": "Dev", "admin": False},
     {"email": "yash.mangal@quickreply.ai", "name": "Yash Mangal", "role": "Dev", "admin": False},
     {"email": "ameer.basha@quickreply.ai", "name": "Shaik Ameer Basha", "role": "QA", "admin": False},
     {"email": "manik.gandhi@quickreply.ai", "name": "Manik Gandhi", "role": "Dev", "admin": False},
@@ -284,7 +283,6 @@ TEMP_PASSWORD_HASHES = {
     "jatin.nehlani@quickreply.ai": "c49c964a196427f0a0146d4c198fa2d3607defdb590b1719d769dcd1538eb17d",
     "ashish.karn@quickreply.ai": "b0c151ff510d35164bfeae52f79f858c61ca6f7eb77b957961bdea159b23e135",
     "anirudh.sharma@quickreply.ai": "a47c7b1af1979dc106c14ab515af1eed91b8a87700b7dee78b496a1c88074496",
-    "hari.sachdeva@quickreply.ai": "d90812faf68b487d2497e59b2d51070c952b29fce4d75e793cf85f435bdb4069",
     "yash.mangal@quickreply.ai": "372237f90291fef9b44c74d4d2aea4000c2ab11f36d298301701e73ab1ef8095",
     "ameer.basha@quickreply.ai": "59e90c2a05ca80c490a0abf679fa2714428c26df2bc9158602e579101639ad18",
     "manik.gandhi@quickreply.ai": "a6e1ff8c58a1293eb7a25712141bd9cd4edc234ec1e6a76271815b14c13e2215",
@@ -329,6 +327,12 @@ def on_startup():
             # Add qa_lead_name to Project
             try:
                 session.execute(text('ALTER TABLE "project" ADD COLUMN qa_lead_name VARCHAR DEFAULT \'Prateek Pandey\''))
+                session.commit()
+            except Exception: session.rollback()
+
+            # Add is_active to User
+            try:
+                session.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT 1'))
                 session.commit()
             except Exception: session.rollback()
             
@@ -500,6 +504,8 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
     user = session.exec(select(User).where(User.email == email)).first()
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(request=request, name="login.html", context={"error": "Invalid email or password."})
+    if getattr(user, 'is_active', True) == False:
+        return templates.TemplateResponse(request=request, name="login.html", context={"error": "Your account has been deactivated. Please contact an administrator."})
     request.session["user"] = email
     request.session["user_name"] = user.name
     request.session["user_role"] = user.role
@@ -1393,6 +1399,7 @@ async def update_user(
     password: Optional[str] = Form(None),
     role: str = Form(...),
     is_admin: bool = Form(False),
+    is_active: bool = Form(False),
     tabs: List[str] = Form([]),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
@@ -1406,6 +1413,7 @@ async def update_user(
     if user:
         user.role = role
         user.is_admin = is_admin
+        user.is_active = is_active
         if password:
             user.password_hash = hash_password(password)
         
