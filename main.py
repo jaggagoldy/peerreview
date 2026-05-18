@@ -745,8 +745,17 @@ async def create_project(
     if not dev_poc: dev_poc = "N/A"
     if not qa_poc: qa_poc = "N/A"
     
-    # QA Lead Logic: Use form value if provided, else default to "Prateek Pandey" if QA members exist
-    qa_lead = qa_lead_name if (qa_lead_name and qa_lead_name.strip()) else ("Prateek Pandey" if qa_team else "None")
+    # QA Lead Logic:
+    # 1. If Prateek Pandey is assigned as QA in project, don't add him as QA Lead.
+    # 2. If Anirudh or Shaikh or both are in project (and Prateek is not), add QA Lead as Prateek Pandey.
+    # 3. Otherwise respect form value or default to None.
+    qa_lead = qa_lead_name if (qa_lead_name and qa_lead_name.strip()) else "None"
+    if qa_team and "Prateek Pandey" in qa_team:
+        if qa_lead == "Prateek Pandey":
+            qa_lead = "None"
+    elif qa_team and ("Anirudh Sharma" in qa_team or "Shaik Ameer Basha" in qa_team):
+        if qa_lead == "None":
+            qa_lead = "Prateek Pandey"
 
     project = Project(
         name=name,
@@ -807,6 +816,15 @@ async def update_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    qa_lead = qa_lead_name if qa_lead_name else project.qa_lead_name
+    qas = json.loads(project.qa_team) if project.qa_team else []
+    if qas and "Prateek Pandey" in qas:
+        if qa_lead == "Prateek Pandey":
+            qa_lead = "None"
+    elif qas and ("Anirudh Sharma" in qas or "Shaik Ameer Basha" in qas):
+        if qa_lead == "None":
+            qa_lead = "Prateek Pandey"
+
     editable_fields = {
         "name": name.strip(),
         "sprint": sprint.strip(),
@@ -818,7 +836,7 @@ async def update_project(
         "release_date": date.fromisoformat(release_date),
         "project_size": project_size,
         "delivery_status": delivery_status,
-        "qa_lead_name": qa_lead_name if qa_lead_name else project.qa_lead_name,
+        "qa_lead_name": qa_lead,
     }
 
     labels = {
@@ -1294,7 +1312,7 @@ async def dashboard(
             "poc_count": len(poc_projects),
             "score_avg": u_s1,
             "impact_points": round(profile_impact_points, 1),
-            "reviews": user_reviews,
+            "reviews": [r for r in user_reviews if r.project_id == pid] if pid else user_reviews,
             "trend": trend,
             "involved_projects": involved_projects,
             "all_projects": {p.id: p.name for p in all_projects},
