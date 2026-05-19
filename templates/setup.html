@@ -247,8 +247,30 @@
                         </div>
                     </div>
 
+                    {% set dev_members = p.dev_team | from_json %}
+                    {% set qa_members = p.qa_team | from_json %}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+                        <div class="form-group">
+                            <label>Dev POC</label>
+                            <select name="dev_poc">
+                                {% for d in dev_members %}
+                                <option value="{{ d }}" {% if p.dev_poc == d %}selected{% endif %}>{{ d }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>QA POC</label>
+                            <select name="qa_poc">
+                                <option value="N/A" {% if p.qa_poc == 'N/A' %}selected{% endif %}>N/A</option>
+                                {% for q in qa_members %}
+                                <option value="{{ q }}" {% if p.qa_poc == q %}selected{% endif %}>{{ q }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
                     <div style="margin: 0.5rem 0 1rem; padding: 0.9rem; background: rgba(255,255,255,0.03); border-radius: 8px; color: var(--text-muted); font-size: 0.82rem;">
-                        Stakeholders fixed: Dev {{ p.dev_team | from_json | join(', ') }} | QA {{ p.qa_team | from_json | join(', ') }}
+                        Stakeholders fixed: Dev {{ dev_members | join(', ') }} | QA {{ qa_members | join(', ') }}
                         {% if p.product_owner %} | Product {{ p.product_owner }}{% endif %}
                         {% if p.tech_lead_name %} | Tech Lead {{ p.tech_lead_name }}{% endif %}
                     </div>

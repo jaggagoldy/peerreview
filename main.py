@@ -824,6 +824,8 @@ async def update_project(
     project_size: int = Form(...),
     delivery_status: str = Form(...),
     qa_lead_name: Optional[str] = Form(None),
+    dev_poc: Optional[str] = Form(None),
+    qa_poc: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -858,6 +860,8 @@ async def update_project(
         "project_size": project_size,
         "delivery_status": delivery_status,
         "qa_lead_name": qa_lead,
+        "dev_poc": dev_poc.strip() if dev_poc else project.dev_poc,
+        "qa_poc": qa_poc.strip() if qa_poc else project.qa_poc,
     }
 
     labels = {
@@ -873,6 +877,8 @@ async def update_project(
         "project_size": "Project Score",
         "delivery_status": "Delivery Status",
         "qa_lead_name": "QA Lead",
+        "dev_poc": "Dev POC",
+        "qa_poc": "QA POC",
     }
     changes = {}
     for field, new_value in editable_fields.items():
