@@ -330,6 +330,12 @@ def on_startup():
                 session.commit()
             except Exception: session.rollback()
 
+            # Add project_type to Project
+            try:
+                session.execute(text('ALTER TABLE "project" ADD COLUMN project_type VARCHAR DEFAULT \'Feature\''))
+                session.commit()
+            except Exception: session.rollback()
+
             # Add is_active to User (Postgres uses TRUE, SQLite can use TRUE or 1)
             try:
                 session.execute(text('ALTER TABLE "user" ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
@@ -719,6 +725,7 @@ async def project_setup(request: Request, current_user: User = Depends(get_curre
 async def create_project(
     name: str = Form(...),
     sprint: str = Form(...),
+    project_type: str = Form("Feature"),
     asana_link: Optional[str] = Form(None),
     design_date: Optional[str] = Form(None),
     dev_start: Optional[str] = Form(None),
@@ -767,10 +774,11 @@ async def create_project(
     elif qa_team and ("Anirudh Sharma" in qa_team or "Shaik Ameer Basha" in qa_team):
         if qa_lead == "None":
             qa_lead = "Prateek Pandey"
-
+ 
     project = Project(
         name=name,
         sprint=sprint,
+        project_type=project_type,
         asana_link=asana_link,
         design_date=parse_dt(design_date),
         dev_start=parse_dt(dev_start),
@@ -806,6 +814,7 @@ async def update_project(
     project_id: int = Form(...),
     name: str = Form(...),
     sprint: str = Form(...),
+    project_type: str = Form("Feature"),
     asana_link: Optional[str] = Form(None),
     design_date: Optional[str] = Form(None),
     dev_start: Optional[str] = Form(None),
@@ -839,6 +848,7 @@ async def update_project(
     editable_fields = {
         "name": name.strip(),
         "sprint": sprint.strip(),
+        "project_type": project_type.strip(),
         "asana_link": asana_link.strip() if asana_link else None,
         "design_date": parse_dt(design_date),
         "dev_start": parse_dt(dev_start),
@@ -853,6 +863,7 @@ async def update_project(
     labels = {
         "name": "Project Name",
         "sprint": "Sprint",
+        "project_type": "Project Type",
         "asana_link": "Project Link",
         "design_date": "Design Date",
         "dev_start": "Dev Start",
@@ -907,20 +918,23 @@ async def review_form(request: Request, project_id: Optional[int] = None, sessio
 
     # Only show projects where user is involved (Dev, QA, TL, or Product)
     # STRICT RULE: Even super admins should only see projects they are part of FOR RATING PURPOSE
+    # EXCEPTION: CEO/CTO can review any project optionally.
     all_projects = session.exec(select(Project).order_by(Project.release_date.desc())).all()
-    user_projects = []
-    
-    for p in all_projects:
-        team = get_project_members(p)
-        if current_user.name in team:
-            user_projects.append(p)
+    if is_executive_user(current_user):
+        user_projects = all_projects
+    else:
+        user_projects = []
+        for p in all_projects:
+            team = get_project_members(p)
+            if current_user.name in team:
+                user_projects.append(p)
 
     selected_project = None
     if project_id:
         selected_project = session.get(Project, project_id)
         if selected_project:
             team = get_project_members(selected_project)
-            if current_user.name not in team:
+            if current_user.name not in team and not is_executive_user(current_user):
                 return HTMLResponse("Unauthorized: You are not involved in this project and cannot submit reviews for it.", status_code=403)
     
     is_admin = current_user.is_admin
@@ -1001,7 +1015,7 @@ async def submit_reviews(
     qas = normalize_member_list(json.loads(project.qa_team))
     all_members = get_project_members(project)
     
-    if current_user.name not in all_members:
+    if current_user.name not in all_members and not is_executive_user(current_user):
         raise HTTPException(status_code=403, detail="You are not authorized to review this project as you are not a team member.")
 
     # Prevent Duplicate Submission
@@ -1028,6 +1042,10 @@ async def submit_reviews(
     improvement = form_data.get("improvement_feedback", "")
     submitted_reviews_summary = []
 
+    all_users = session.exec(select(User)).all()
+    user_roles = {u.name: u.role for u in all_users}
+    EXCLUDED_FROM_RATING = ["CEO", "CTO", "Scrum Master"]
+
     for person_name, scores in ratings_raw.items():
         # Validate rated person is in project
         role = ""
@@ -1039,6 +1057,7 @@ async def submit_reviews(
         elif person_name == project_product: role = "Product"
         
         if not role: continue
+        if user_roles.get(person_name) in EXCLUDED_FROM_RATING: continue
         
         review = Review(
             project_id=project_id,
@@ -1248,6 +1267,7 @@ async def dashboard(
                 "id": p_obj.id,
                 "name": p_obj.name,
                 "sprint": p_obj.sprint,
+                "project_type": getattr(p_obj, 'project_type', 'Feature'),
                 "dev_poc": p_obj.dev_poc,
                 "qa_poc": p_obj.qa_poc,
                 "tech_lead_name": getattr(p_obj, 'tech_lead_name', '') if is_real_member(getattr(p_obj, 'tech_lead_name', '')) else '',
@@ -1331,6 +1351,7 @@ async def dashboard(
                     "id": p.id,
                     "name": p.name,
                     "sprint": p.sprint,
+                    "project_type": getattr(p, 'project_type', 'Feature'),
                     "is_live": p_stats.get("is_live", False),
                     "pending_count": p_stats.get("pending_count", 0),
                     "my_score": round(sum(project_scores[p.id]) / len(project_scores[p.id]), 2) if p.id in project_scores else None

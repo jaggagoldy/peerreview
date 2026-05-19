@@ -194,6 +194,7 @@
                     {% endif %}
                 </h2>
                 <div style="font-size:0.87rem;color:var(--text-muted);">
+                    Type: <span style="color:#fff;">{{ project_info.project_type or 'Feature' }}</span> &nbsp;|&nbsp;
                     Sprint: <span style="color:#fff;">{{ project_info.sprint }}</span> &nbsp;|&nbsp;
                     Dev POC: <span style="color:var(--primary);">{{ project_info.dev_poc }}</span> &nbsp;|&nbsp;
                     QA POC: <span style="color:var(--accent);">{{ project_info.qa_poc }}</span>
@@ -494,6 +495,7 @@
                 <thead>
                     <tr style="background:rgba(255,255,255,0.02);text-align:left;">
                         <th style="padding:1rem 1.5rem;opacity:0.6;font-weight:600;">Project</th>
+                        <th style="padding:1rem 1.5rem;opacity:0.6;font-weight:600;">Type</th>
                         <th style="padding:1rem 1.5rem;opacity:0.6;font-weight:600;">Sprint</th>
                         <th style="padding:1rem 1.5rem;opacity:0.6;font-weight:600;">Privacy Status</th>
                         <th style="padding:1rem 1.5rem;opacity:0.6;font-weight:600;">My Score</th>
@@ -503,6 +505,7 @@
                     {% for p in user_profile.involved_projects %}
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
                         <td style="padding:1rem 1.5rem;font-weight:600;">{{ p.name }}</td>
+                        <td style="padding:1rem 1.5rem;opacity:0.7;">{{ p.project_type or 'Feature' }}</td>
                         <td style="padding:1rem 1.5rem;opacity:0.7;">{{ p.sprint }}</td>
                         <td style="padding:1rem 1.5rem;">
                             {% if p.is_live %}

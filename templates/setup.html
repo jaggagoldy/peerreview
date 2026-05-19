@@ -14,6 +14,14 @@
                 <input type="text" name="sprint" placeholder="e.g. Q2 - Sprint 4" required>
             </div>
             <div class="form-group">
+                <label>Project Type</label>
+                <select name="project_type">
+                    <option value="Feature">Feature</option>
+                    <option value="Bug">Bug</option>
+                    <option value="Enhancement">Enhancement</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label>Project Size / Points</label>
                 <input type="number" name="project_size" value="2" min="1" max="20" required>
             </div>
@@ -155,7 +163,7 @@
                             {{ p.delivery_status }}
                         </span>
                     </h3>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.sprint }} | Score:
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0px;">{{ p.project_type or 'Feature' }} | {{ p.sprint }} | Score:
                         {{ p.project_size }} | Release: {{ p.release_date }} | QA Lead: {{ p.qa_lead_name or 'None' }}</p>
                 </div>
                 <div style="text-align: right;">
@@ -179,6 +187,14 @@
                         <div class="form-group">
                             <label>Sprint / Release</label>
                             <input type="text" name="sprint" value="{{ p.sprint }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Project Type</label>
+                            <select name="project_type">
+                                {% for type in ['Feature', 'Bug', 'Enhancement'] %}
+                                <option value="{{ type }}" {% if p.project_type == type %}selected{% endif %}>{{ type }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Project Score</label>

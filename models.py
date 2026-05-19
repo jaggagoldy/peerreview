@@ -19,6 +19,7 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     sprint: str
+    project_type: Optional[str] = Field(default="Feature")
     asana_link: Optional[str] = None # New Field
     design_date: Optional[date] = None
     dev_start: Optional[date] = None
