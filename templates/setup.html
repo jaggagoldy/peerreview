@@ -3,7 +3,7 @@
 {% block content %}
 <div class="glass-card">
     <h1>Project Setup</h1>
-    <form action="/setup" method="post">
+    <form action="/setup" method="post" onsubmit="const b=this.querySelector('button[type=submit]'); b.disabled=true; b.innerHTML='Processing...';">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
             <div class="form-group">
                 <label>Project Name</label>
@@ -177,6 +177,7 @@
                 <summary class="btn" style="display: inline-block; padding: 0.55rem 1rem; font-size: 0.78rem; cursor: pointer;">Edit Project</summary>
             <div style="margin-top: 1rem;">
                 <form action="/admin/projects/update" method="post"
+                    onsubmit="const b=this.querySelector('button[type=submit]'); b.disabled=true; b.innerHTML='Saving...';"
                     style="border-top: 1px solid var(--glass-border); padding-top: 1rem;">
                     <input type="hidden" name="project_id" value="{{ p.id }}">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">

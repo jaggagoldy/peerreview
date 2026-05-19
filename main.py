@@ -807,7 +807,7 @@ async def create_project(
     )
     session.commit()
 
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/setup?msg=Project+Created+Successfully", status_code=303)
 
 @app.post("/admin/projects/update")
 async def update_project(
@@ -913,7 +913,7 @@ async def update_project(
         )
         session.commit()
 
-    return RedirectResponse(url="/setup", status_code=303)
+    return RedirectResponse(url="/setup?msg=Project+Updated+Successfully", status_code=303)
 
 @app.get("/review", response_class=HTMLResponse)
 async def review_form(request: Request, project_id: Optional[int] = None, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
@@ -1120,7 +1120,7 @@ async def submit_reviews(
     except Exception as e:
         print(f"Email failed: {e}")
 
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return RedirectResponse(url="/dashboard?msg=Review+Submitted+Successfully", status_code=303)
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
@@ -1480,7 +1480,7 @@ async def update_user(
         session.add(user)
         session.commit()
     
-    return RedirectResponse(url="/admin/users", status_code=303)
+    return RedirectResponse(url="/admin/users?msg=User+Updated+Successfully", status_code=303)
 
 # ---- Superadmin: Reset any user's password ----
 @app.post("/admin/users/reset-password")
@@ -1500,7 +1500,7 @@ async def admin_reset_password(
         user.password_hash = hash_password(new_password)
         session.add(user)
         session.commit()
-    return RedirectResponse(url="/admin/users", status_code=303)
+    return RedirectResponse(url="/admin/users?msg=Password+Reset+Successfully", status_code=303)
 
 # ---- Superadmin: Delete project -> Recycle Bin ----
 @app.post("/admin/projects/delete")
@@ -1538,7 +1538,7 @@ async def delete_project(
             session.delete(r)
             
         session.commit()
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/setup?msg=Project+Deleted+Successfully", status_code=303)
 
 @app.get("/admin/system-master-reset")
 async def system_master_reset(

@@ -307,14 +307,16 @@
             setInterval(fetchNotifs, 60000); // Check every minute
         </script>
 
-        {% if profile_success %}
-        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            ✅ {{ profile_success }}
+        {% set msg = request.query_params.get('msg') or profile_success %}
+        {% set err = request.query_params.get('error') or profile_error %}
+        {% if msg %}
+        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem; animation: dropDown 0.3s ease;">
+            ✅ {{ msg }}
         </div>
         {% endif %}
-        {% if profile_error %}
-        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            ❌ {{ profile_error }}
+        {% if err %}
+        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; padding: 0.8rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem; animation: dropDown 0.3s ease;">
+            ❌ {{ err }}
         </div>
         {% endif %}
 
